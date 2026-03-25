@@ -1,27 +1,21 @@
 {
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pythia-the-oracle/pythia-oracle-mcp",
-  "description": "On-chain calculated crypto indicators (EMA, RSI, Bollinger Bands, Volatility) for AI agents — 484 feeds across 22 tokens via Chainlink",
+  "description": "On-chain calculated crypto indicators (EMA, RSI, Bollinger) for AI agents via Chainlink",
   "repository": {
     "url": "https://github.com/pythia-the-oracle/pythia-oracle-mcp",
-    "source": "github",
-    "id": "pythia-the-oracle/pythia-oracle-mcp"
+    "source": "github"
   },
-  "version_detail": {
-    "version": "0.2.0",
-    "release_date": "2026-03-25",
-    "is_latest": true
-  },
+  "version": "0.2.2",
   "packages": [
     {
-      "registry_name": "pypi",
-      "name": "pythia-oracle-mcp",
-      "version": "0.2.0",
-      "runtime": "python",
-      "runtime_hint": {
-        "key": "PIP_PACKAGE",
-        "value": "pythia-oracle-mcp"
+      "registryType": "pypi",
+      "identifier": "pythia-oracle-mcp",
+      "version": "0.2.2",
+      "transport": {
+        "type": "stdio"
       },
-      "environment_variables": []
+      "environmentVariables": []
     }
   ]
 }

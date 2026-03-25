@@ -1,5 +1,7 @@
 # Pythia Oracle MCP Server
 
+<!-- mcp-name: io.github.pythia-the-oracle/pythia-oracle-mcp -->
+
 [![PyPI](https://img.shields.io/pypi/v/pythia-oracle-mcp)](https://pypi.org/project/pythia-oracle-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
