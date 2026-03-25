@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pythia-oracle-mcp"
-version = "0.1.0"
-description = "MCP server for Pythia Oracle — on-chain calculated indicators (EMA, RSI, VWAP, Bollinger, volatility, liquidity) via Chainlink"
+version = "0.2.0"
+description = "MCP server for Pythia Oracle — on-chain calculated indicators (EMA, RSI, Bollinger, Volatility) via Chainlink"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -27,7 +27,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://pythia.c3x-solutions.com"
-Repository = "https://github.com/PythiaOracle/pythia-oracle-mcp"
+Repository = "https://github.com/pythia-the-oracle/pythia-oracle-mcp"
 
 [project.scripts]
 pythia-oracle-mcp = "pythia_oracle_mcp.server:main"
