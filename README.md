@@ -1,8 +1,21 @@
 # Pythia Oracle MCP Server
 
-On-chain calculated technical indicators for AI agents. EMA, RSI, Bollinger Bands, Volatility — delivered to smart contracts via Chainlink.
+[![PyPI](https://img.shields.io/pypi/v/pythia-oracle-mcp)](https://pypi.org/project/pythia-oracle-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Pythia is the first oracle providing computed metrics on-chain.** Unlike price-only oracles, Pythia calculates the same indicators traders use and makes them available to smart contracts with a single call.
+**On-chain calculated crypto indicators for AI agents and smart contracts.**
+
+Pythia is the first oracle delivering calculated technical indicators on-chain — EMA, RSI, VWAP, Bollinger Bands, volatility — for 22 tokens across crypto. Not just prices. The same indicators traders use, available to smart contracts and AI agents with a single call via Chainlink.
+
+## Why Pythia?
+
+Most oracles only give you price. Pythia gives you **computed analysis**: 484 indicator feeds across 22 tokens (BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more), 4 timeframes, delivered on Polygon via Chainlink. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
+
+**Use cases:**
+- AI trading agents that need on-chain technical signals
+- DeFi vault rebalancing based on RSI or volatility thresholds
+- Smart contract risk management using Bollinger Band width
+- AI-powered portfolio analysis with real-time calculated metrics
 
 ## Quick Start
 
@@ -30,7 +43,7 @@ Add to `claude_desktop_config.json`:
 claude mcp add pythia-oracle -- pythia-oracle-mcp
 ```
 
-### Cursor / VS Code
+### Cursor / Windsurf / VS Code
 
 Add to MCP settings:
 
@@ -41,6 +54,10 @@ Add to MCP settings:
   }
 }
 ```
+
+### OpenAI Agents / GPT
+
+Any MCP-compatible client works — just point it at `pythia-oracle-mcp`.
 
 ### Run directly
 
@@ -60,7 +77,9 @@ python -m pythia_oracle_mcp
 | `get_pricing` | Pricing tiers and when to use each one |
 | `get_integration_guide` | Ready-to-deploy Solidity code for any tier |
 
-## Example Usage (in Claude)
+## Example Prompts
+
+Ask your AI agent:
 
 > "What indicators does Pythia have for Bitcoin?"
 
@@ -86,9 +105,15 @@ Calls `get_market_summary()` — returns ecosystem coverage, status breakdown, a
 - **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.03), Speed (0.05), Complete (0.10)
 - **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
 
+## Integration Examples
+
+See [pythia-oracle-examples](https://github.com/pythia-the-oracle/pythia-oracle-examples) for Solidity contracts with Hardhat setup — ready to deploy on Polygon.
+
 ## Links
 
-- [Website & Feed Explorer](https://pythia.c3x-solutions.com)
+- [Website & Live Feed Explorer](https://pythia.c3x-solutions.com)
+- [Integration Examples (Solidity + Hardhat)](https://github.com/pythia-the-oracle/pythia-oracle-examples)
+- [PyPI Package](https://pypi.org/project/pythia-oracle-mcp/)
 - [Telegram](https://t.me/pythia_the_oracle)
 - [Twitter/X](https://x.com/pythia_oracle)
 

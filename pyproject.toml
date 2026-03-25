@@ -12,13 +12,14 @@ requires-python = ">=3.10"
 authors = [
     { name = "Pythia Oracle", email = "ivan.jeremic@c3x-solutions.com" },
 ]
-keywords = ["mcp", "oracle", "chainlink", "defi", "indicators", "ema", "rsi", "vwap", "bollinger"]
+keywords = ["mcp", "oracle", "chainlink", "defi", "indicators", "ema", "rsi", "vwap", "bollinger", "crypto", "on-chain", "technical-analysis", "ai-agent", "polygon", "smart-contracts", "model-context-protocol"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Libraries",
+    "Topic :: Office/Business :: Financial",
 ]
 dependencies = [
     "mcp>=1.0.0",
