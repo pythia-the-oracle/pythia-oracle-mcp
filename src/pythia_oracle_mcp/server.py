@@ -2,11 +2,10 @@
 """
 Pythia Oracle MCP Server
 
-Exposes Pythia's on-chain calculated indicators (EMA, RSI, VWAP, Bollinger,
-volatility, liquidity) to AI agents via the Model Context Protocol.
+On-chain calculated technical indicators (EMA, RSI, Bollinger Bands, Volatility)
+for 22+ tokens across crypto, delivered via Chainlink on Polygon.
 
-Run: python server.py
-Or via MCP: mcp run server.py
+Data source: Pythia's public feed-status.json, updated every 15 minutes.
 """
 
 import json
@@ -18,17 +17,19 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP(
     "Pythia Oracle",
     instructions=(
-        "On-chain calculated technical indicators — EMA, RSI, VWAP, "
-        "Bollinger Bands, volatility, liquidity. The first oracle delivering "
-        "computed metrics to smart contracts via Chainlink on Polygon."
+        "Pythia Oracle — the first oracle delivering calculated technical indicators "
+        "on-chain. EMA, RSI, Bollinger Bands, Volatility for 22+ tokens across "
+        "all of crypto (BTC, SOL, TAO, RENDER, ONDO and more), delivered via "
+        "Chainlink on Polygon. Use these tools to explore available data, check "
+        "oracle reliability, and get integration code."
     ),
 )
 
 # ---------------------------------------------------------------------------
-# Constants
+# Configuration
 # ---------------------------------------------------------------------------
 
-FEED_STATUS_URL = "https://pythia.c3x-solutions.com/feed-status.json"
+DATA_URL = "https://pythia.c3x-solutions.com/feed-status.json"
 WEBSITE_URL = "https://pythia.c3x-solutions.com"
 
 CONTRACTS = {
@@ -65,113 +66,58 @@ CONTRACTS = {
     },
 }
 
-INDICATORS = {
-    "EMA": {
-        "name": "Exponential Moving Average",
-        "description": "20-period EMA. Smoothed trend indicator.",
-        "feed_format": "{engine_id}_EMA_{timeframe}_20",
-    },
-    "RSI": {
-        "name": "Relative Strength Index",
-        "description": "14-period RSI. Momentum oscillator (0-100). >70 = overbought, <30 = oversold.",
-        "feed_format": "{engine_id}_RSI_{timeframe}_14",
-    },
-    "VWAP": {
-        "name": "Volume-Weighted Average Price",
-        "description": "Price weighted by volume. Key institutional benchmark.",
-        "feed_format": "{engine_id}_VWAP_{timeframe}",
-    },
-    "BOLLINGER_UPPER": {
-        "name": "Bollinger Band (Upper)",
-        "description": "Upper band = SMA(20) + 2*stddev. Price above = potential overbought.",
-        "feed_format": "{engine_id}_BOLLINGER_UPPER_{timeframe}_20",
-    },
-    "BOLLINGER_MID": {
-        "name": "Bollinger Band (Middle)",
-        "description": "Middle band = SMA(20). The baseline moving average.",
-        "feed_format": "{engine_id}_BOLLINGER_MID_{timeframe}_20",
-    },
-    "BOLLINGER_LOWER": {
-        "name": "Bollinger Band (Lower)",
-        "description": "Lower band = SMA(20) - 2*stddev. Price below = potential oversold.",
-        "feed_format": "{engine_id}_BOLLINGER_LOWER_{timeframe}_20",
-    },
-    "VOLATILITY": {
-        "name": "Volatility",
-        "description": "Standard deviation-based volatility measure.",
-        "feed_format": "{engine_id}_VOLATILITY_{timeframe}",
-    },
-    "LIQUIDITY": {
-        "name": "Liquidity Depth",
-        "description": "DEX liquidity depth metric.",
-        "feed_format": "{engine_id}_LIQUIDITY_{timeframe}",
-    },
-}
-
-TIMEFRAMES = {
-    "5M": {"name": "5-minute", "tier": "speed"},
-    "1H": {"name": "1-hour", "tier": "analysis"},
-    "1D": {"name": "1-day", "tier": "analysis"},
-    "1W": {"name": "1-week", "tier": "analysis"},
-}
-
-# Cache for feed data
-_feed_cache: dict = {"data": None, "fetched_at": None}
-CACHE_TTL_SECONDS = 300  # 5 minutes
+# Cache — 60s TTL (JSON updates every 15min, but keep responsive)
+_cache: dict = {}
+CACHE_TTL_SECONDS = 60
 
 
-async def _fetch_feed_status() -> dict:
-    """Fetch feed status from the public website, with caching."""
+async def _fetch_data() -> dict:
+    """Fetch feed-status.json with cache."""
     now = datetime.now(timezone.utc)
-    if (
-        _feed_cache["data"]
-        and _feed_cache["fetched_at"]
-        and (now - _feed_cache["fetched_at"]).total_seconds() < CACHE_TTL_SECONDS
-    ):
-        return _feed_cache["data"]
+    cached = _cache.get("data")
+    if cached and (now - cached["at"]).total_seconds() < CACHE_TTL_SECONDS:
+        return cached["data"]
 
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(FEED_STATUS_URL)
+        resp = await client.get(DATA_URL)
         resp.raise_for_status()
         data = resp.json()
 
-    _feed_cache["data"] = data
-    _feed_cache["fetched_at"] = now
+    _cache["data"] = {"data": data, "at": now}
     return data
 
 
 # ---------------------------------------------------------------------------
-# Tools
+# Tools — Token Discovery
 # ---------------------------------------------------------------------------
 
 
 @mcp.tool()
 async def list_tokens() -> str:
-    """List all tokens supported by Pythia Oracle with their engine IDs and current status."""
-    data = await _fetch_feed_status()
+    """List all tokens tracked by Pythia with status and reliability info.
+
+    Returns token symbols, categories, data source count, 30-day uptime,
+    and operational status. Covers cross-chain tokens (BTC, SOL, TAO,
+    RENDER, ONDO, etc.) and Polygon DeFi tokens.
+    """
+    data = await _fetch_data()
     tokens = data.get("tokens", [])
-    lines = [f"Pythia Oracle — {len(tokens)} supported tokens\n"]
-    for t in tokens:
+    stats = data.get("stats", {})
+
+    lines = [f"Pythia Oracle — {stats.get('tokens', len(tokens))} tokens, "
+             f"{stats.get('total_indicators', '?')} indicator feeds\n"]
+    lines.append(f"{'Symbol':<8} {'Engine ID':<28} {'Category':<16} {'Status':<6} "
+                 f"{'Uptime':>7}  {'Src':>3}")
+    lines.append("-" * 78)
+    for t in sorted(tokens, key=lambda x: x.get("category", "")):
+        status = t.get("status", "?")
+        uptime = f"{t['uptime_30d']:.1f}%" if t.get("uptime_30d") is not None else "?"
         lines.append(
-            f"  {t['symbol']:6s}  engine_id={t['engine_id']:<35s}  "
-            f"chain={t.get('chain', 'polygon')}  status={t.get('status', 'unknown')}"
+            f"{t['symbol']:<8} {t['engine_id']:<28} {t.get('category', '?'):<16} "
+            f"{status:<6} {uptime:>7}  {t.get('sources', '?'):>3}"
         )
-    lines.append(f"\nData source: {WEBSITE_URL}")
-    return "\n".join(lines)
-
-
-@mcp.tool()
-async def list_indicators() -> str:
-    """List all calculated indicator types available from Pythia (EMA, RSI, VWAP, Bollinger, volatility, liquidity)."""
-    lines = ["Pythia Oracle — Available Indicators\n"]
-    for key, info in INDICATORS.items():
-        lines.append(f"  {key}")
-        lines.append(f"    {info['name']}: {info['description']}")
-        lines.append(f"    Feed format: {info['feed_format']}")
-        lines.append("")
-    lines.append("Timeframes:")
-    for tf, info in TIMEFRAMES.items():
-        lines.append(f"  {tf} ({info['name']}) — included in {info['tier']} tier")
+    lines.append(f"\nData delivered on-chain via Chainlink on Polygon.")
+    lines.append(f"Free trial: PythiaFaucet at {CONTRACTS['faucet']}")
     return "\n".join(lines)
 
 
@@ -179,76 +125,211 @@ async def list_indicators() -> str:
 async def get_token_feeds(engine_id: str) -> str:
     """Get all available indicator feeds for a specific token.
 
+    Shows every feed name (EMA, RSI, Bollinger, Volatility across all
+    timeframes), the token's reliability stats, and data source count.
+    Feed names are what you pass to the on-chain oracle to request data.
+
     Args:
-        engine_id: Token engine ID (e.g., 'aave', 'pol', 'uniswap', 'quickswap', 'morpho')
+        engine_id: Token engine ID (e.g., 'bitcoin', 'solana', 'bittensor',
+                   'aave', 'pol'). Use list_tokens() to see all available IDs.
     """
-    data = await _fetch_feed_status()
-    tokens = {t["engine_id"]: t for t in data.get("tokens", [])}
+    data = await _fetch_data()
+    tokens = data.get("tokens", [])
 
-    if engine_id not in tokens:
-        available = ", ".join(sorted(tokens.keys()))
-        return f"Token '{engine_id}' not found. Available: {available}"
+    token = next((t for t in tokens if t["engine_id"] == engine_id), None)
+    if not token:
+        available = sorted(t["engine_id"] for t in tokens)
+        return (
+            f"No token found for '{engine_id}'.\n\n"
+            f"Available: {', '.join(available)}"
+        )
 
-    token = tokens[engine_id]
-    feeds = token.get("feeds", [])
+    feed_names = token.get("feed_names", [])
+    lines = [
+        f"{token['symbol']} ({token['name']}) — {token.get('pair', '?')}",
+        f"Status: {token.get('status', '?')}  |  "
+        f"30d uptime: {token.get('uptime_30d', '?')}%  |  "
+        f"Data sources: {token.get('sources', '?')}",
+        f"Category: {token.get('category', '?')}  |  "
+        f"Ecosystem: {token.get('ecosystem', '?')}",
+        f"\n{len(feed_names)} indicator feeds available:\n",
+    ]
 
-    lines = [f"{token['symbol']} ({engine_id}) — {len(feeds)} indicator feeds\n"]
-    for feed in feeds:
-        name = feed if isinstance(feed, str) else feed.get("name", str(feed))
-        lines.append(f"  {name}")
+    # Group by indicator type
+    groups: dict[str, list[str]] = {}
+    for name in sorted(feed_names):
+        # Strip token prefix to get indicator part
+        suffix = name[len(engine_id) + 1:]
+        cat = suffix.split("_")[0]
+        groups.setdefault(cat, []).append(suffix)
 
-    lines.append(f"\nTo request any single feed: use Discovery tier (0.01 LINK)")
-    lines.append(f"For all 1H/1D/1W feeds: use Analysis bundle (0.03 LINK)")
-    lines.append(f"For all 5M feeds: use Speed bundle (0.05 LINK)")
-    lines.append(f"For everything: use Complete bundle (0.10 LINK)")
-    lines.append(f"\nFree trial: call PythiaFaucet at {CONTRACTS['faucet']}")
+    for cat, feeds in sorted(groups.items()):
+        lines.append(f"  {cat}:")
+        for feed in feeds:
+            lines.append(f"    {engine_id}_{feed}")
+        lines.append("")
+
+    lines.append("To request any feed on-chain, pass the full feed name")
+    lines.append("(e.g., 'bitcoin_RSI_1H_14') to the Pythia consumer contract.")
+    lines.append(f"\nUse get_integration_guide() for Solidity code.")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Tools — Market Summary & Health
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def get_market_summary() -> str:
+    """Get a summary of all tokens tracked by Pythia with operational overview.
+
+    Returns system-wide stats, tokens grouped by status, uptime distribution,
+    data source health, and infrastructure status. Useful for quickly
+    understanding what Pythia covers and whether the system is healthy.
+    """
+    data = await _fetch_data()
+    tokens = data.get("tokens", [])
+    stats = data.get("stats", {})
+    system = data.get("system", {})
+    generated = data.get("generated_at", "unknown")
+
+    lines = [f"Pythia Oracle — System Overview (as of {generated})\n"]
+
+    # Overall stats
+    lines.append("System Stats:")
+    lines.append(f"  Tokens:           {stats.get('tokens', '?')}")
+    lines.append(f"  Indicator feeds:  {stats.get('total_indicators', '?')}")
+    lines.append(f"  Chains:           {stats.get('chains', '?')}")
+    lines.append(f"  Ecosystems:       {stats.get('ecosystems', '?')}")
+    lines.append(f"  Avg response:     {stats.get('avg_response_ms', '?')}ms")
+    lines.append(f"  Active incidents: {stats.get('active_incidents', 0)}")
+    lines.append("")
+
+    # Tokens by status
+    by_status: dict[str, list[str]] = {}
+    for t in tokens:
+        s = t.get("status", "unknown")
+        by_status.setdefault(s, []).append(t["symbol"])
+
+    lines.append("Tokens by Status:")
+    for status in ["live", "warn", "down", "unknown"]:
+        if status in by_status:
+            syms = ", ".join(sorted(by_status[status]))
+            lines.append(f"  {status:<6} ({len(by_status[status])}): {syms}")
+    lines.append("")
+
+    # Tokens by ecosystem
+    by_eco: dict[str, list[str]] = {}
+    for t in tokens:
+        eco = t.get("ecosystem", "Other")
+        by_eco.setdefault(eco, []).append(t["symbol"])
+
+    lines.append("Coverage by Ecosystem:")
+    for eco, syms in sorted(by_eco.items(), key=lambda x: -len(x[1])):
+        lines.append(f"  {eco:<20} {len(syms)} tokens: {', '.join(sorted(syms))}")
+    lines.append("")
+
+    # Data sources
+    sources = system.get("sources", [])
+    if sources:
+        lines.append("Data Sources:")
+        for s in sources:
+            lines.append(f"  {s['name']:<15} status: {s['status']}  (tier {s['tier']})")
+        lines.append("")
+
+    # Infrastructure
+    infra = system.get("infrastructure", {})
+    if infra:
+        lines.append("Infrastructure:")
+        for component, status in infra.items():
+            lines.append(f"  {component:<15} {status}")
+
     return "\n".join(lines)
 
 
 @mcp.tool()
-async def get_feed_value(feed_name: str) -> str:
-    """Get the current cached value for a specific indicator feed.
+async def check_oracle_health() -> str:
+    """Check the reliability and uptime of Pythia's oracle system.
 
-    Args:
-        feed_name: Feed identifier (e.g., 'aave_EMA_5M_20', 'pol_RSI_1H_14', 'uniswap_VWAP_1D')
+    Returns per-token 30-day uptime (sorted worst-first so problems
+    surface immediately), recent daily status history, data source
+    health, and infrastructure status. Use this to verify Pythia's
+    reliability before integrating or relying on its data.
     """
-    data = await _fetch_feed_status()
-    for token in data.get("tokens", []):
-        feeds = token.get("feeds", [])
-        for feed in feeds:
-            if isinstance(feed, dict) and feed.get("name") == feed_name:
-                return json.dumps(
-                    {
-                        "feed": feed_name,
-                        "token": token["symbol"],
-                        "value": feed.get("value"),
-                        "updated_at": feed.get("updated_at"),
-                        "status": feed.get("status", "unknown"),
-                    },
-                    indent=2,
-                )
+    data = await _fetch_data()
+    tokens = data.get("tokens", [])
+    system = data.get("system", {})
+    stats = data.get("stats", {})
+    generated = data.get("generated_at", "unknown")
 
-    # Feed not found — suggest closest matches
-    all_feeds = []
-    for token in data.get("tokens", []):
-        for feed in token.get("feeds", []):
-            name = feed if isinstance(feed, str) else feed.get("name", "")
-            all_feeds.append(name)
+    lines = [f"Pythia Oracle — Health Report (as of {generated})\n"]
 
-    suggestions = [f for f in all_feeds if feed_name.split("_")[0] in f.lower()][:10]
-    msg = f"Feed '{feed_name}' not found in cached data."
-    if suggestions:
-        msg += f"\n\nDid you mean one of: {', '.join(suggestions)}"
-    return msg
+    # System-level
+    incidents = stats.get("active_incidents", 0)
+    if incidents > 0:
+        lines.append(f"  *** {incidents} ACTIVE INCIDENT(S) ***\n")
+    else:
+        lines.append("  No active incidents.\n")
+
+    # Infrastructure
+    infra = system.get("infrastructure", {})
+    all_ok = all(v == "ok" for v in infra.values())
+    lines.append(f"Infrastructure: {'ALL OK' if all_ok else 'ISSUES DETECTED'}")
+    if not all_ok:
+        for component, status in infra.items():
+            if status != "ok":
+                lines.append(f"  {component}: {status}")
+    lines.append("")
+
+    # Data sources
+    sources = system.get("sources", [])
+    sources_ok = all(s["status"] == "ok" for s in sources)
+    lines.append(f"Data Sources: {'ALL OK' if sources_ok else 'ISSUES DETECTED'}")
+    for s in sources:
+        marker = " " if s["status"] == "ok" else "!"
+        lines.append(f" {marker} {s['name']:<15} {s['status']}")
+    lines.append("")
+
+    # Per-token uptime, worst first
+    lines.append(f"{'Token':<8} {'Uptime 30d':>10}  {'Status':<6}  {'Src':>3}  Last 7 days")
+    lines.append("-" * 65)
+
+    sorted_tokens = sorted(tokens, key=lambda t: t.get("uptime_30d", 0))
+    for t in sorted_tokens:
+        uptime = t.get("uptime_30d")
+        uptime_str = f"{uptime:.1f}%" if uptime is not None else "?"
+        status = t.get("status", "?")
+
+        # Last 7 days from uptime_days (most recent last)
+        days = t.get("uptime_days", [])
+        last_7 = days[-7:] if len(days) >= 7 else days
+        day_str = " ".join("." if d == "ok" else "W" if d == "warn" else "X" for d in last_7)
+
+        flag = " " if (uptime is not None and uptime >= 99.0) else "*"
+        lines.append(
+            f"{flag}{t['symbol']:<7} {uptime_str:>10}  {status:<6}  "
+            f"{t.get('sources', '?'):>3}  {day_str}"
+        )
+
+    lines.append("")
+    lines.append("Legend: . = ok, W = warming up, X = down")
+    lines.append("* = below 99% uptime (investigate)")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Tools — Integration (static, rarely changes)
+# ---------------------------------------------------------------------------
 
 
 @mcp.tool()
 async def get_contracts() -> str:
-    """Get all Pythia contract addresses on Polygon (operator, consumers, faucet, LINK token)."""
+    """Get Pythia contract addresses on Polygon for on-chain integration."""
     lines = ["Pythia Oracle — Contract Addresses (Polygon Mainnet, Chain ID 137)\n"]
-    lines.append(f"  Operator:           {CONTRACTS['operator']}")
-    lines.append(f"  LINK Token (ERC-677): {CONTRACTS['link_token_erc677']}")
-    lines.append(f"  Faucet (free trial): {CONTRACTS['faucet']}")
+    lines.append(f"  Operator:             {CONTRACTS['operator']}")
+    lines.append(f"  LINK Token (ERC-677):  {CONTRACTS['link_token_erc677']}")
+    lines.append(f"  Faucet (free trial):   {CONTRACTS['faucet']}")
     lines.append("")
     lines.append("Consumer Contracts (by tier):")
     for tier, info in CONTRACTS["consumers"].items():
@@ -265,45 +346,40 @@ async def get_contracts() -> str:
 
 @mcp.tool()
 async def get_pricing() -> str:
-    """Get Pythia Oracle pricing tiers and when to use each one."""
+    """Get Pythia pricing tiers and free trial info."""
     return """Pythia Oracle — Pricing Tiers
 
   DISCOVERY — 0.01 LINK
-    Any single indicator (EMA, RSI, VWAP, Bollinger, volatility, liquidity)
+    Any single indicator (EMA, RSI, Bollinger, Volatility)
     Returns: uint256
     Best for: one-off queries, specific signals
 
   ANALYSIS — 0.03 LINK
     All 1-hour, 1-day, and 1-week indicators bundled
-    Returns: uint256[] (all analysis timeframe slots)
+    Returns: uint256[]
     Best for: protocols needing multi-timeframe view
-    Saves vs Discovery: 3+ individual calls
 
   SPEED — 0.05 LINK
     All 5-minute indicators bundled
-    Returns: uint256[] (all 5M slots)
-    Best for: real-time trading, HFT agents, active rebalancing
-    Saves vs Discovery: 5+ individual calls
+    Returns: uint256[]
+    Best for: real-time trading, active rebalancing
 
   COMPLETE — 0.10 LINK
     Every indicator for a token (all timeframes)
-    Returns: uint256[] (all slots)
-    Best for: comprehensive analysis, dashboards
-    Saves vs Discovery: 10+ individual calls
+    Returns: uint256[]
+    Best for: comprehensive analysis
 
   FREE TRIAL — PythiaFaucet
     Address: 0x640fC3B9B607E324D7A3d89Fcb62C77Cc0Bd420A
-    Call requestIndicator(feed) — no LINK needed
-    Rate limit: 5 requests/day/address
-    Returns real data — not mocks"""
+    No LINK needed. 5 requests/day/address. Real data."""
 
 
 @mcp.tool()
 async def get_integration_guide(tier: str = "discovery") -> str:
-    """Get Solidity code to integrate Pythia Oracle into a smart contract.
+    """Get Solidity code to integrate Pythia into a smart contract.
 
     Args:
-        tier: Pricing tier — 'discovery' (single value), 'analysis', 'speed', or 'complete' (bundles). Default: discovery.
+        tier: 'discovery' (single value), 'analysis', 'speed', or 'complete'.
     """
     tier = tier.lower()
     if tier not in CONTRACTS["consumers"]:
@@ -339,7 +415,7 @@ contract MyPythiaConsumer is ChainlinkClient, ConfirmedOwner {{
     }}
 
     /// @notice Request a single indicator value
-    /// @param feed Feed name, e.g. "aave_EMA_5M_20" or "pol_RSI_1H_14"
+    /// @param feed Feed name, e.g. "bitcoin_RSI_1H_14" or "solana_EMA_5M_20"
     function requestIndicator(string memory feed) public onlyOwner returns (bytes32) {{
         Chainlink.Request memory req = _buildChainlinkRequest(
             jobId, address(this), this.fulfill.selector
@@ -362,8 +438,8 @@ contract MyPythiaConsumer is ChainlinkClient, ConfirmedOwner {{
 Steps:
 1. Deploy this contract on Polygon mainnet
 2. Fund it with ERC-677 LINK (use PegSwap if you have bridged LINK)
-3. Call requestIndicator("aave_EMA_5M_20") — result arrives in fulfill()
-4. Read lastValue — it's the indicator × 1e18
+3. Call requestIndicator("bitcoin_RSI_1H_14") — result arrives in fulfill()
+4. Read lastValue — it's the indicator x 1e18
 
 Free trial: Use PythiaFaucet ({CONTRACTS['faucet']}) instead — no LINK needed."""
 
@@ -395,7 +471,7 @@ contract MyPythiaBundleConsumer is ChainlinkClient, ConfirmedOwner {{
     }}
 
     /// @notice Request a bundle of indicators for a token
-    /// @param engineId Token engine ID, e.g. "aave", "pol", "uniswap"
+    /// @param engineId Token engine ID, e.g. "bitcoin", "solana", "aave"
     function requestBundle(string memory engineId) public onlyOwner returns (bytes32) {{
         Chainlink.Request memory req = _buildChainlinkRequest(
             jobId, address(this), this.fulfillBundle.selector
@@ -426,8 +502,8 @@ contract MyPythiaBundleConsumer is ChainlinkClient, ConfirmedOwner {{
 Steps:
 1. Deploy on Polygon mainnet (gasLimit: 1,000,000 — bundles need more gas)
 2. Fund with ERC-677 LINK
-3. Call requestBundle("aave") — bundle arrives in fulfillBundle()
-4. Read lastBundle[i] — each slot is an indicator × 1e18
+3. Call requestBundle("bitcoin") — bundle arrives in fulfillBundle()
+4. Read lastBundle[i] — each slot is an indicator x 1e18
 
 Bundle contents vary by tier:
   Analysis = 1H + 1D + 1W indicators
@@ -435,32 +511,6 @@ Bundle contents vary by tier:
   Complete = everything
 
 Docs: {WEBSITE_URL}"""
-
-
-@mcp.tool()
-async def get_system_status() -> str:
-    """Get current Pythia Oracle system status — chains, token count, feed count, uptime."""
-    data = await _fetch_feed_status()
-    stats = data.get("stats", {})
-    chains = data.get("chains", [])
-    generated = data.get("generated_at", "unknown")
-
-    lines = ["Pythia Oracle — System Status\n"]
-    lines.append(f"  Data as of: {generated}")
-    lines.append(f"  Tokens:     {stats.get('tokens', '?')}")
-    lines.append(f"  Indicators: {stats.get('total_indicators', '?')}")
-    lines.append(f"  Active feeds: {stats.get('active_feeds', '?')}")
-    lines.append(f"  Uptime (30d): {stats.get('uptime_30d', '?')}%")
-    lines.append(f"  Avg response: {stats.get('avg_response_ms', '?')}ms")
-    lines.append(f"  Active incidents: {stats.get('active_incidents', 0)}")
-    lines.append("")
-    lines.append("Chains:")
-    for chain in chains:
-        lines.append(
-            f"  {chain['name']}: {chain.get('status', '?')} "
-            f"({chain.get('tokens', '?')} tokens, {chain.get('feeds', '?')} feeds)"
-        )
-    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
