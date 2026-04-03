@@ -4,6 +4,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/pythia-oracle-mcp)](https://pypi.org/project/pythia-oracle-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![pythia-oracle-mcp MCP server](https://glama.ai/mcp/servers/pythia-the-oracle/pythia-oracle-mcp/badges/score.svg)](https://glama.ai/mcp/servers/pythia-the-oracle/pythia-oracle-mcp)
 
 **On-chain calculated crypto indicators for AI agents and smart contracts.**
 
