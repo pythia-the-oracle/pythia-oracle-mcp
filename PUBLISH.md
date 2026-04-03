@@ -56,7 +56,7 @@ Go to https://github.com/royyannick/awesome-blockchain-mcps
 Click "Fork" → edit README.md → add under "On-Chain Integration" section:
 
 ```
-**[Pythia Oracle MCP](https://github.com/PythiaOracle/pythia-oracle-mcp)** – On-chain **calculated technical indicators** (EMA, RSI, VWAP, Bollinger Bands, volatility, liquidity) via **Chainlink on Polygon**. 8 tools: live feed data, contract addresses, Solidity integration code, pricing tiers. First oracle delivering computed metrics to smart contracts.
+**[Pythia Oracle MCP](https://github.com/PythiaOracle/pythia-oracle-mcp)** – On-chain **calculated technical indicators** (EMA, RSI, VWAP, Bollinger Bands, volatility, liquidity) via **Chainlink across supported networks**. 8 tools: live feed data, contract addresses, Solidity integration code, pricing tiers. First oracle delivering computed metrics to smart contracts.
 ```
 
 Then create a Pull Request.

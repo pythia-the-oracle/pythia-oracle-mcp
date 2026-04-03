@@ -3,7 +3,7 @@
 Pythia Oracle MCP Server
 
 On-chain calculated technical indicators (EMA, RSI, Bollinger Bands, Volatility)
-for 22+ tokens across crypto, delivered via Chainlink on Polygon.
+for 22+ tokens across crypto, delivered via Chainlink on supported networks.
 
 Data source: Pythia's public feed-status.json, updated every 15 minutes.
 """
@@ -20,7 +20,7 @@ mcp = FastMCP(
         "Pythia Oracle — the first oracle delivering calculated technical indicators "
         "on-chain. EMA, RSI, Bollinger Bands, Volatility for 22+ tokens across "
         "all of crypto (BTC, SOL, TAO, RENDER, ONDO and more), delivered via "
-        "Chainlink on Polygon. Use these tools to explore available data, check "
+        "Chainlink across supported networks. Use these tools to explore available data, check "
         "oracle reliability, and get integration code."
     ),
 )
@@ -98,7 +98,7 @@ async def list_tokens() -> str:
 
     Returns token symbols, categories, data source count, 30-day uptime,
     and operational status. Covers cross-chain tokens (BTC, SOL, TAO,
-    RENDER, ONDO, etc.) and Polygon DeFi tokens.
+    RENDER, ONDO, etc.) and DeFi tokens.
     """
     data = await _fetch_data()
     tokens = data.get("tokens", [])
@@ -116,7 +116,7 @@ async def list_tokens() -> str:
             f"{t['symbol']:<8} {t['engine_id']:<28} {t.get('category', '?'):<16} "
             f"{status:<6} {uptime:>7}  {t.get('sources', '?'):>3}"
         )
-    lines.append(f"\nData delivered on-chain via Chainlink on Polygon.")
+    lines.append(f"\nData delivered on-chain via Chainlink.")
     lines.append(f"Free trial: PythiaFaucet at {CONTRACTS['faucet']}")
     return "\n".join(lines)
 

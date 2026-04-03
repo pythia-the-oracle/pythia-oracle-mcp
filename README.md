@@ -12,7 +12,7 @@ Pythia is the first oracle delivering calculated technical indicators on-chain �
 
 ## Why Pythia?
 
-Most oracles only give you price. Pythia gives you **computed analysis**: 484 indicator feeds across 22 tokens (BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more), 4 timeframes, delivered on Polygon via Chainlink. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
+Most oracles only give you price. Pythia gives you **computed analysis**: 484 indicator feeds across 22 tokens (BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more), 4 timeframes, delivered on-chain via Chainlink across supported networks. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
 
 **Use cases:**
 - AI trading agents that need on-chain technical signals
@@ -110,7 +110,7 @@ Calls `get_market_summary()` — returns ecosystem coverage, status breakdown, a
 
 ## Integration Examples
 
-See [pythia-oracle-examples](https://github.com/pythia-the-oracle/pythia-oracle-examples) for Solidity contracts with Hardhat setup — ready to deploy on Polygon.
+See [pythia-oracle-examples](https://github.com/pythia-the-oracle/pythia-oracle-examples) for Solidity contracts with Hardhat setup — ready to deploy on any Chainlink-supported network.
 
 ## Links
 
