@@ -30,6 +30,7 @@ mcp = FastMCP(
 # ---------------------------------------------------------------------------
 
 DATA_URL = "https://pythia.c3x-solutions.com/feed-status.json"
+PRICING_URL = "https://pythia.c3x-solutions.com/feed-status.json"
 WEBSITE_URL = "https://pythia.c3x-solutions.com"
 
 CONTRACTS = {
@@ -41,30 +42,47 @@ CONTRACTS = {
     "consumers": {
         "discovery": {
             "address": "0xeC2865d66ae6Af47926B02edd942A756b394F820",
-            "fee": "0.01 LINK",
             "returns": "uint256 (single indicator)",
             "job_id": "0x8920841054eb4082b5910af84afa005e00000000000000000000000000000000",
         },
         "analysis": {
             "address": "0x3b3aC62d73E537E3EF84D97aB5B84B51aF8dB316",
-            "fee": "0.03 LINK",
             "returns": "uint256[] (1H/1D/1W bundle)",
             "job_id": "0xa1ecae215cd9471a95095ab52e2f403600000000000000000000000000000000",
         },
         "speed": {
             "address": "0xC406e7d9AC385e7AB43cBD56C74ad487f085d47B",
-            "fee": "0.05 LINK",
             "returns": "uint256[] (5M bundle)",
             "job_id": "0x8a50dfe4645f41a993a175b486d9840600000000000000000000000000000000",
         },
         "complete": {
             "address": "0x2dEC98fd7173802b351d1E28d0Cd5DdD20C24252",
-            "fee": "0.10 LINK",
             "returns": "uint256[] (all indicators)",
             "job_id": "0x48d135697ade4c8faec5fe67bbc3f65b00000000000000000000000000000000",
         },
     },
 }
+
+# Fallback pricing — used when feed-status.json is unreachable
+_FALLBACK_PRICING = {
+    "discovery": 0.01,
+    "analysis": 0.03,
+    "speed": 0.05,
+    "complete": 0.10,
+}
+
+
+def _get_tier_fees(data: dict | None = None) -> dict[str, float]:
+    """Extract tier fees from feed-status.json data, or return fallback."""
+    if data and "tiers" in data:
+        return {t["id"]: t["fee"] for t in data["tiers"] if "id" in t and "fee" in t}
+    return _FALLBACK_PRICING.copy()
+
+
+def _get_tier_fee(data: dict | None, tier: str) -> str:
+    """Get fee string like '0.01 LINK' for a tier."""
+    fees = _get_tier_fees(data)
+    return f"{fees.get(tier, _FALLBACK_PRICING.get(tier, '?'))} LINK"
 
 # Cache — 60s TTL (JSON updates every 15min, but keep responsive)
 _cache: dict = {}
@@ -331,9 +349,12 @@ async def get_contracts() -> str:
     lines.append(f"  LINK Token (ERC-677):  {CONTRACTS['link_token_erc677']}")
     lines.append(f"  Faucet (free trial):   {CONTRACTS['faucet']}")
     lines.append("")
+    data = await _fetch_data()
+    fees = _get_tier_fees(data)
     lines.append("Consumer Contracts (by tier):")
     for tier, info in CONTRACTS["consumers"].items():
-        lines.append(f"\n  {tier.upper()} — {info['fee']}")
+        fee_val = fees.get(tier, "?")
+        lines.append(f"\n  {tier.upper()} — {fee_val} LINK")
         lines.append(f"    Address: {info['address']}")
         lines.append(f"    Returns: {info['returns']}")
         lines.append(f"    Job ID:  {info['job_id']}")
@@ -346,25 +367,33 @@ async def get_contracts() -> str:
 
 @mcp.tool()
 async def get_pricing() -> str:
-    """Get Pythia pricing tiers and free trial info."""
-    return """Pythia Oracle — Pricing Tiers
+    """Get Pythia pricing tiers and free trial info. Prices are live from the data feed."""
+    data = await _fetch_data()
+    fees = _get_tier_fees(data)
 
-  DISCOVERY — 0.01 LINK
+    d = fees.get("discovery", "?")
+    a = fees.get("analysis", "?")
+    s = fees.get("speed", "?")
+    c = fees.get("complete", "?")
+
+    return f"""Pythia Oracle — Pricing Tiers
+
+  DISCOVERY — {d} LINK
     Any single indicator (EMA, RSI, Bollinger, Volatility)
     Returns: uint256
     Best for: one-off queries, specific signals
 
-  ANALYSIS — 0.03 LINK
+  ANALYSIS — {a} LINK
     All 1-hour, 1-day, and 1-week indicators bundled
     Returns: uint256[]
     Best for: protocols needing multi-timeframe view
 
-  SPEED — 0.05 LINK
+  SPEED — {s} LINK
     All 5-minute indicators bundled
     Returns: uint256[]
     Best for: real-time trading, active rebalancing
 
-  COMPLETE — 0.10 LINK
+  COMPLETE — {c} LINK
     Every indicator for a token (all timeframes)
     Returns: uint256[]
     Best for: comprehensive analysis
@@ -386,12 +415,14 @@ async def get_integration_guide(tier: str = "discovery") -> str:
         return f"Unknown tier '{tier}'. Choose: discovery, analysis, speed, complete"
 
     info = CONTRACTS["consumers"][tier]
+    data = await _fetch_data()
+    fee_str = _get_tier_fee(data, tier)
 
     if tier == "discovery":
         return f"""Pythia Integration — Discovery Tier (Single Indicator)
 
 Consumer: {info['address']}
-Fee: {info['fee']}
+Fee: {fee_str}
 Job ID: {info['job_id']}
 
 ```solidity
@@ -406,7 +437,7 @@ contract MyPythiaConsumer is ChainlinkClient, ConfirmedOwner {{
 
     uint256 public lastValue;
     bytes32 private jobId = {info['job_id']};
-    uint256 private fee = 0.01 ether; // 0.01 LINK
+    uint256 private fee = {_get_tier_fees(data).get('discovery', 0.01)} ether; // {fee_str}
     address private oracle = {CONTRACTS['operator']};
 
     constructor() ConfirmedOwner(msg.sender) {{
@@ -444,10 +475,11 @@ Steps:
 Free trial: Use PythiaFaucet ({CONTRACTS['faucet']}) instead — no LINK needed."""
 
     else:
+        fee_num = _get_tier_fees(data).get(tier, 0.10)
         return f"""Pythia Integration — {tier.upper()} Tier (Bundle)
 
 Consumer: {info['address']}
-Fee: {info['fee']}
+Fee: {fee_str}
 Job ID: {info['job_id']}
 
 ```solidity
@@ -462,7 +494,7 @@ contract MyPythiaBundleConsumer is ChainlinkClient, ConfirmedOwner {{
 
     uint256[] public lastBundle;
     bytes32 private jobId = {info['job_id']};
-    uint256 private fee = {info['fee'].replace(' LINK', '')} ether;
+    uint256 private fee = {fee_num} ether; // {fee_str}
     address private oracle = {CONTRACTS['operator']};
 
     constructor() ConfirmedOwner(msg.sender) {{
