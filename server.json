@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pythia-the-oracle/pythia-oracle-mcp",
-  "description": "Every smart contract deserves intelligence, not just data. On-chain calculated indicators (EMA, RSI, Bollinger) for AI agents via Chainlink.",
+  "description": "Every smart contract deserves intelligence, not just data. On-chain indicators via Chainlink.",
   "repository": {
     "url": "https://github.com/pythia-the-oracle/pythia-oracle-mcp",
     "source": "github"
