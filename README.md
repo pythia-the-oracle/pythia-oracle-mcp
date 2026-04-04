@@ -8,11 +8,11 @@
 
 **On-chain calculated crypto indicators for AI agents and smart contracts.**
 
-Pythia is the first oracle delivering calculated technical indicators on-chain — EMA, RSI, VWAP, Bollinger Bands, volatility — for 22 tokens across crypto. Not just prices. The same indicators traders use, available to smart contracts and AI agents with a single call via Chainlink.
+Pythia is the first oracle delivering calculated technical indicators on-chain — EMA, RSI, VWAP, Bollinger Bands, volatility — for any token, on any Chainlink-supported chain. Not just prices. The same indicators traders use, available to smart contracts and AI agents with a single call via Chainlink.
 
 ## Why Pythia?
 
-Most oracles only give you price. Pythia gives you **computed analysis**: 484 indicator feeds across 22 tokens (BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more), 4 timeframes, delivered on-chain via Chainlink across supported networks. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
+Most oracles only give you price. Pythia gives you **computed analysis**: EMA, RSI, Bollinger Bands, VWAP, volatility — for tokens like BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more, across 4 timeframes, delivered on-chain via Chainlink. New tokens and indicators are added on demand. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
 
 **Use cases:**
 - AI trading agents that need on-chain technical signals
@@ -72,7 +72,7 @@ python -m pythia_oracle_mcp
 
 | Tool | Description |
 |------|-------------|
-| `list_tokens` | All 22 tracked tokens with status, uptime, and data sources |
+| `list_tokens` | All tracked tokens with status, uptime, and data sources |
 | `get_token_feeds` | All indicator feed names for a specific token |
 | `get_market_summary` | System-wide overview — tokens by status, ecosystem coverage, infrastructure health |
 | `check_oracle_health` | Per-token 30-day uptime (worst-first), data source status, incident report |
@@ -86,7 +86,7 @@ Ask your AI agent:
 
 > "What indicators does Pythia have for Bitcoin?"
 
-Calls `get_token_feeds("bitcoin")` — returns all 22 indicator feeds grouped by type.
+Calls `get_token_feeds("bitcoin")` — returns all indicator feeds for Bitcoin, grouped by type.
 
 > "Is Pythia reliable enough to integrate?"
 
@@ -102,10 +102,10 @@ Calls `get_market_summary()` — returns ecosystem coverage, status breakdown, a
 
 ## What Pythia Provides
 
-- **484 indicator feeds** across 22 tokens (cross-chain: BTC, SOL, TAO, RENDER, ONDO and more)
-- **5 indicator types:** EMA, RSI, Bollinger (upper/lower), Volatility, USD Price
+- **Any token, any Chainlink-supported chain** — currently serving BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, MORPHO, and more, with new tokens added on demand
+- **6 indicator types:** EMA, RSI, Bollinger Bands (upper/lower), VWAP, Volatility, USD Price
 - **4 timeframes:** 5-minute, 1-hour, 1-day, 1-week
-- **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.03), Speed (0.05), Complete (0.10)
+- **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.02), Speed (0.05), Complete (0.10)
 - **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
 
 ## Integration Examples
