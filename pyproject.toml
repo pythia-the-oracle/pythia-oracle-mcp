@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pythia-oracle-mcp"
-version = "0.2.5"
-description = "MCP server for Pythia Oracle — on-chain calculated indicators (EMA, RSI, Bollinger, Volatility) via Chainlink"
+version = "0.2.6"
+description = "Every smart contract deserves intelligence, not just data. Pythia Oracle MCP server — on-chain calculated indicators via Chainlink."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

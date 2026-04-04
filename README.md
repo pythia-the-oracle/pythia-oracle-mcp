@@ -6,9 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![pythia-oracle-mcp MCP server](https://glama.ai/mcp/servers/pythia-the-oracle/pythia-oracle-mcp/badges/score.svg)](https://glama.ai/mcp/servers/pythia-the-oracle/pythia-oracle-mcp)
 
-**On-chain calculated crypto indicators for AI agents and smart contracts.**
+**Every smart contract deserves intelligence, not just data.**
 
-Pythia is the first oracle delivering calculated technical indicators on-chain — EMA, RSI, VWAP, Bollinger Bands, volatility — for any token, on any Chainlink-supported chain. Not just prices. The same indicators traders use, available to smart contracts and AI agents with a single call via Chainlink.
+Pythia is the first oracle delivering calculated technical indicators on-chain — EMA, RSI, VWAP, Bollinger Bands, volatility — for any token, on any Chainlink-supported chain. The same indicators traders use, available to smart contracts and AI agents with a single call via Chainlink.
 
 ## Why Pythia?
 

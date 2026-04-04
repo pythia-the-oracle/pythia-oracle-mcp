@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pythia-the-oracle/pythia-oracle-mcp",
-  "description": "On-chain calculated crypto indicators (EMA, RSI, Bollinger) for AI agents via Chainlink",
+  "description": "Every smart contract deserves intelligence, not just data. On-chain calculated indicators (EMA, RSI, Bollinger) for AI agents via Chainlink.",
   "repository": {
     "url": "https://github.com/pythia-the-oracle/pythia-oracle-mcp",
     "source": "github"
   },
-  "version": "0.2.5",
+  "version": "0.2.6",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "pythia-oracle-mcp",
-      "version": "0.2.5",
+      "version": "0.2.6",
       "transport": {
         "type": "stdio"
       },
