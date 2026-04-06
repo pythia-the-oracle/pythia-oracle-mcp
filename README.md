@@ -10,6 +10,8 @@
 
 Pythia is the first oracle delivering calculated technical indicators on-chain — EMA, RSI, VWAP, Bollinger Bands, volatility — for any token, on any Chainlink-supported chain. The same indicators traders use, available to smart contracts and AI agents with a single call via Chainlink.
 
+**Pythia Events** lets smart contracts subscribe to indicator conditions (RSI below 30, EMA crossover, Bollinger breakout) and get called automatically when they trigger. No keeper, no off-chain bot, no polling — your contract reacts to markets on its own.
+
 ## Why Pythia?
 
 Most oracles only give you price. Pythia gives you **computed analysis**: EMA, RSI, Bollinger Bands, VWAP, volatility — for tokens like BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more, across 4 timeframes, delivered on-chain via Chainlink. New tokens and indicators are added on demand. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
@@ -19,6 +21,8 @@ Most oracles only give you price. Pythia gives you **computed analysis**: EMA, R
 - DeFi vault rebalancing based on RSI or volatility thresholds
 - Smart contract risk management using Bollinger Band width
 - AI-powered portfolio analysis with real-time calculated metrics
+- Event-driven strategies — subscribe to RSI thresholds or EMA crossovers, your contract gets triggered automatically
+- Automated DeFi bots without keepers — no Gelato, no cron jobs, no off-chain infrastructure
 
 ## Quick Start
 
@@ -79,6 +83,9 @@ python -m pythia_oracle_mcp
 | `get_contracts` | All contract addresses (operator, consumers, faucet, LINK) |
 | `get_pricing` | Pricing tiers and when to use each one |
 | `get_integration_guide` | Ready-to-deploy Solidity code for any tier |
+| `get_events_info` | How Pythia Events work — subscribe to indicator conditions, get triggered on-chain |
+| `get_events_guide` | Solidity code and deployment steps for event subscriptions |
+| `subscribe_info` | Subscription details — conditions, pricing, refund mechanics |
 
 ## Example Prompts
 
@@ -100,6 +107,14 @@ Calls `get_integration_guide("speed")` — returns a complete, deployable contra
 
 Calls `get_market_summary()` — returns ecosystem coverage, status breakdown, and infrastructure health.
 
+> "How do Pythia Events work? I want my contract to react when BTC RSI drops below 30."
+
+Calls `get_events_info()` — returns how subscriptions work, supported conditions, and pricing.
+
+> "Give me the Solidity code to subscribe to an EMA crossover event."
+
+Calls `get_events_guide()` — returns a deployable EventSubscriber contract with subscribe/receive pattern.
+
 ## What Pythia Provides
 
 - **Any token, any Chainlink-supported chain** — currently serving BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, MORPHO, and more, with new tokens added on demand
@@ -107,6 +122,7 @@ Calls `get_market_summary()` — returns ecosystem coverage, status breakdown, a
 - **4 timeframes:** 5-minute, 1-hour, 1-day, 1-week
 - **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.02), Speed (0.05), Complete (0.10)
 - **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
+- **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
 
 ## Integration Examples
 
