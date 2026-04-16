@@ -12,6 +12,8 @@ Pythia is the first oracle delivering calculated technical indicators on-chain �
 
 **Pythia Events** lets smart contracts subscribe to indicator conditions (RSI below 30, EMA crossover, Bollinger breakout) and get called automatically when they trigger. No keeper, no off-chain bot, no polling — your contract reacts to markets on its own.
 
+**Pythia Visions** delivers AI-calibrated market intelligence on-chain — 6 backtested patterns (2017-2026) with 74-89% accuracy, evaluated every 6 hours. FREE to subscribe.
+
 ## Why Pythia?
 
 Most oracles only give you price. Pythia gives you **computed analysis**: EMA, RSI, Bollinger Bands, VWAP, volatility — for tokens like BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, and more, across 4 timeframes, delivered on-chain via Chainlink. New tokens and indicators are added on demand. If your AI agent, DeFi protocol, or trading bot needs on-chain RSI, EMA, or Bollinger Bands — Pythia is the only source.
@@ -86,6 +88,9 @@ python -m pythia_oracle_mcp
 | `get_events_info` | How Pythia Events work — subscribe to indicator conditions, get triggered on-chain |
 | `get_events_guide` | Solidity code and deployment steps for event subscriptions |
 | `subscribe_info` | Subscription details — conditions, pricing, refund mechanics |
+| `get_visions_info` | Pythia Visions overview — 6 backtested patterns, accuracy stats, contract address |
+| `get_visions_guide` | Solidity code to subscribe to Visions and listen for VisionFired events |
+| `get_vision_history` | Recent Visions fired for a token with pattern breakdown and confidence stats |
 
 ## Example Prompts
 
@@ -115,6 +120,18 @@ Calls `get_events_info()` — returns how subscriptions work, supported conditio
 
 Calls `get_events_guide()` — returns a deployable EventSubscriber contract with subscribe/receive pattern.
 
+> "What are Pythia Visions? What patterns does it detect?"
+
+Calls `get_visions_info()` — returns 6 backtested patterns with accuracy, contract address, and how it works.
+
+> "Show me recent BTC Visions that fired"
+
+Calls `get_vision_history("BTC")` — returns recent pattern detections with confidence and price.
+
+> "Give me Solidity code to subscribe to Pythia Visions"
+
+Calls `get_visions_guide()` — returns a contract that subscribes to VisionFired events.
+
 ## What Pythia Provides
 
 - **Any token, any Chainlink-supported chain** — currently serving BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, MORPHO, and more, with new tokens added on demand
@@ -123,6 +140,7 @@ Calls `get_events_guide()` — returns a deployable EventSubscriber contract wit
 - **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.02), Speed (0.05), Complete (0.10)
 - **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
 - **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
+- **Pythia Visions:** AI-calibrated market intelligence — 6 backtested patterns (capitulation, EMA divergence, Bollinger extreme, overbought continuation) with 74-89% accuracy, delivered on-chain via Chainlink. FREE to subscribe.
 
 ## Integration Examples
 

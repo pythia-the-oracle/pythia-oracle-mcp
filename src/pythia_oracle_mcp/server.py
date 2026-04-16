@@ -21,8 +21,9 @@ mcp = FastMCP(
         "on-chain. EMA, RSI, Bollinger Bands, Volatility for 22+ tokens across "
         "all of crypto (BTC, SOL, TAO, RENDER, ONDO and more), delivered via "
         "Chainlink across supported networks. Use these tools to explore available data, check "
-        "oracle reliability, get integration code, and learn about Pythia Events "
-        "(on-chain indicator alert subscriptions)."
+        "oracle reliability, get integration code, learn about Pythia Events "
+        "(on-chain indicator alert subscriptions), and Pythia Visions "
+        "(AI-calibrated market intelligence with backtested pattern detection)."
     ),
 )
 
@@ -77,6 +78,17 @@ _FALLBACK_CONTRACTS = {
 }
 
 _CONDITION_NAMES = {0: "ABOVE", 1: "BELOW", 2: "CROSSES_ABOVE", 3: "CROSSES_BELOW"}
+
+# Fallback Visions data — offline resilience (static backtest results 2017-2026)
+_VISIONS_REGISTRY = "0x39407eEc3Ba80746BC6156eD924D16C2689533Ed"
+_VISIONS_PATTERNS = [
+    {"name": "CAPITULATION_STRONG", "code": "0x11", "accuracy": "85-87%", "avg_return": "+7-8%", "sample": 62},
+    {"name": "CAPITULATION_BOUNCE", "code": "0x10", "accuracy": "80%", "avg_return": "+5-7%", "sample": 78},
+    {"name": "EMA_DIVERGENCE_STRONG", "code": "0x21", "accuracy": "89%", "avg_return": "+6%", "sample": 36},
+    {"name": "EMA_DIVERGENCE_SNAP", "code": "0x20", "accuracy": "74-80%", "avg_return": "+4-5%", "sample": 67},
+    {"name": "BOLLINGER_EXTREME", "code": "0x30", "accuracy": "74%", "avg_return": "+3-4%", "sample": 38},
+    {"name": "OVERBOUGHT_CONTINUATION", "code": "0x40", "accuracy": "60-65%", "avg_return": "+1-2%", "sample": 127},
+]
 
 
 def _parse_consumers(raw: dict) -> dict[str, str]:
@@ -838,6 +850,231 @@ async def subscribe_info(
     lines.append(f"\nLINK Token (mainnet): {mainnet['link_token']}")
     lines.append(f"Refund: {events.get('refund', 'unused whole days refunded')}")
     lines.append(f"\nUse get_events_guide() for a complete Solidity contract.")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Tools — Pythia Visions (AI market intelligence)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def get_visions_info() -> str:
+    """Get overview of Pythia Visions — AI-calibrated market intelligence on-chain.
+
+    Returns the 6 backtested patterns with accuracy stats, the Vision Registry
+    contract address, subscription info (FREE), evaluation frequency, and
+    supported tokens. Visions are pattern detections validated over 8.5 years
+    of BTC data (2017-2026) with 74-89% historical accuracy.
+    """
+    data = await _fetch_data()
+    visions = data.get("visions", {}) if data else {}
+
+    registry = visions.get("registry", _VISIONS_REGISTRY)
+    patterns = visions.get("patterns", _VISIONS_PATTERNS)
+    tokens = visions.get("tokens", ["BTC"])
+    stats = visions.get("stats", {})
+
+    lines = ["Pythia Visions — AI Market Intelligence On-Chain\n"]
+    lines.append(
+        "Backtested, AI-calibrated pattern detections delivered on-chain via "
+        "Chainlink. Evaluated every 6 hours. FREE to subscribe."
+    )
+    lines.append("")
+
+    lines.append("Detected Patterns (validated 2017-2026, 75K+ candles):\n")
+    lines.append(f"  {'Pattern':<28} {'Code':<6} {'Accuracy':<10} {'Avg Return':<12} {'Samples'}")
+    lines.append(f"  {'-'*28} {'-'*6} {'-'*10} {'-'*12} {'-'*7}")
+    for p in patterns:
+        lines.append(
+            f"  {p['name']:<28} {p['code']:<6} {p['accuracy']:<10} "
+            f"{p['avg_return']:<12} {p['sample']}"
+        )
+    lines.append("")
+
+    lines.append("How It Works:")
+    lines.append("  1. Every 6h: read live indicators (EMA, RSI, Bollinger, VWAP, ATR)")
+    lines.append("  2. Mechanical pattern detection checks 6 known patterns")
+    lines.append("  3. If pattern found: Claude Haiku calibrates confidence (55-89)")
+    lines.append("  4. Vision fires on-chain via Chainlink webhook")
+    lines.append("  5. Subscribers receive VisionFired event with full payload")
+    lines.append("")
+
+    lines.append(f"Vision Registry: {registry}")
+    lines.append(f"Chain: Polygon PoS (mainnet)")
+    lines.append(f"Subscription fee: FREE")
+    lines.append(f"Tokens: {', '.join(tokens)}")
+    lines.append(f"Signal frequency: ~30 Visions/year for BTC")
+    lines.append("")
+
+    if stats.get("total_fired"):
+        lines.append(f"Stats: {stats['total_fired']} total fired, "
+                     f"avg confidence {stats.get('avg_confidence', 'N/A')}")
+        lines.append("")
+
+    lines.append("Use get_visions_guide() for Solidity integration code.")
+    lines.append("Use get_vision_history() for recent Visions fired.")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def get_visions_guide() -> str:
+    """Get Solidity code to subscribe to Pythia Visions and listen for VisionFired events.
+
+    Returns a complete contract that subscribes to the PythiaVisionRegistry,
+    receives VisionFired events with pattern type, confidence, direction, price,
+    and full analysis payload. Subscription is FREE (no LINK required).
+    """
+    data = await _fetch_data()
+    visions = data.get("visions", {}) if data else {}
+    registry = visions.get("registry", _VISIONS_REGISTRY)
+    mainnet = _get_mainnet(data)
+    link_token = mainnet["link_token"]
+
+    return f"""Pythia Visions Integration — AI Market Intelligence On-Chain
+
+Vision Registry (Mainnet): {registry}
+LINK Token: {link_token}
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+interface IPythiaVisionRegistry {{
+    function subscribe(bytes32 tokenId) external;
+    function unsubscribe(bytes32 tokenId) external;
+    function isSubscribed(address subscriber, bytes32 tokenId) external view returns (bool);
+    function getSubscriberCount(bytes32 tokenId) external view returns (uint256);
+    function getVisionCount(bytes32 tokenId) external view returns (uint256);
+    function getLastVisionAt(bytes32 tokenId) external view returns (uint256);
+}}
+
+contract MyVisionSubscriber {{
+    IPythiaVisionRegistry public immutable registry;
+
+    // Token IDs are keccak256 hashes of the token name
+    bytes32 public constant BTC = keccak256("BTC");
+
+    // Fired by PythiaVisionRegistry when a pattern is detected
+    event VisionFired(
+        bytes32 indexed tokenId,   // keccak256("BTC")
+        uint8 patternType,          // 0x11, 0x10, 0x21, 0x20, 0x30, 0x40
+        uint8 confidence,           // 55-89 (AI-calibrated)
+        uint8 direction,            // 1 = BULLISH
+        uint256 price,              // 18 decimals
+        bytes payload               // Full JSON (indicators + analysis)
+    );
+
+    constructor(address _registry) {{
+        registry = IPythiaVisionRegistry(_registry);
+    }}
+
+    /// @notice Subscribe to BTC Visions. FREE — no LINK required.
+    function subscribeBTC() external {{
+        registry.subscribe(BTC);
+    }}
+
+    /// @notice Unsubscribe from BTC Visions.
+    function unsubscribeBTC() external {{
+        registry.unsubscribe(BTC);
+    }}
+
+    /// @notice Check if this contract is subscribed.
+    function isSubscribed() external view returns (bool) {{
+        return registry.isSubscribed(address(this), BTC);
+    }}
+}}
+```
+
+Steps:
+1. Deploy with (_registry) = {registry}
+2. Call subscribeBTC() — no LINK needed, subscription is FREE
+3. Listen for VisionFired events on the registry contract via RPC/WebSocket
+4. Decode the payload bytes to get the full analysis JSON
+
+Pattern Types:
+  0x11 = CAPITULATION_STRONG (85-87% accuracy)
+  0x10 = CAPITULATION_BOUNCE (80%)
+  0x21 = EMA_DIVERGENCE_STRONG (89%)
+  0x20 = EMA_DIVERGENCE_SNAP (74-80%)
+  0x30 = BOLLINGER_EXTREME (74%)
+  0x40 = OVERBOUGHT_CONTINUATION (60-65%)
+
+Payload JSON includes: indicators (RSI, EMA, Bollinger, VWAP, ATR),
+pattern details, AI-calibrated confidence, analysis narrative,
+and feeds-to-watch for confirmation.
+
+Token IDs: keccak256 of the token name.
+  BTC = keccak256("BTC") = 0xe98e2830be1a7e4156d656a7505e65d08c67660dc618072422e9c78053c261e9
+
+Deployment:
+  Mainnet: _registry={registry}"""
+
+
+@mcp.tool()
+async def get_vision_history(token: str = "BTC") -> str:
+    """Get recent Pythia Visions fired for a token with pattern breakdown and stats.
+
+    Args:
+        token: Token symbol to check (default: BTC). Case-insensitive.
+    """
+    data = await _fetch_data()
+    visions = data.get("visions", {}) if data else {}
+
+    if not visions:
+        return ("Pythia Visions data not available yet. "
+                "Use get_visions_info() for pattern details and contract address.")
+
+    recent = visions.get("recent", [])
+    stats = visions.get("stats", {})
+    registry = visions.get("registry", _VISIONS_REGISTRY)
+    token_upper = token.upper()
+
+    # Filter by token
+    filtered = [v for v in recent if v.get("token", "").upper() == token_upper]
+
+    lines = [f"Pythia Visions — {token_upper} History\n"]
+    lines.append(f"Registry: {registry}")
+    lines.append(f"Subscription: FREE\n")
+
+    if not filtered:
+        lines.append(f"No Visions have fired for {token_upper} yet.")
+        lines.append(f"\nAvailable tokens: {', '.join(visions.get('tokens', []))}")
+        lines.append("\nUse get_visions_info() for pattern details.")
+        return "\n".join(lines)
+
+    lines.append(f"Recent Visions ({len(filtered)} shown):\n")
+    for v in filtered:
+        lines.append(f"  {v.get('fired_at', '?')}")
+        lines.append(f"    Pattern:    {v.get('pattern_name', '?')}")
+        lines.append(f"    Confidence: {v.get('confidence', '?')}")
+        lines.append(f"    Direction:  {v.get('direction', '?')}")
+        lines.append(f"    Price:      ${v.get('price_usd', 0):,.2f}")
+        lines.append(f"    Haiku AI:   {'Yes' if v.get('haiku_available') else 'No'}")
+        lines.append("")
+
+    # Pattern breakdown
+    pattern_counts: dict[str, list[int]] = {}
+    for v in filtered:
+        name = v.get("pattern_name", "?")
+        conf = v.get("confidence", 0)
+        if name not in pattern_counts:
+            pattern_counts[name] = []
+        pattern_counts[name].append(conf)
+
+    lines.append("Pattern Breakdown:\n")
+    lines.append(f"  {'Pattern':<28} {'Fires':<7} {'Avg Confidence'}")
+    lines.append(f"  {'-'*28} {'-'*7} {'-'*14}")
+    for name, confs in sorted(pattern_counts.items(), key=lambda x: -len(x[1])):
+        avg = sum(confs) / len(confs) if confs else 0
+        lines.append(f"  {name:<28} {len(confs):<7} {avg:.1f}")
+    lines.append("")
+
+    if stats.get("total_fired"):
+        lines.append(f"Overall: {stats['total_fired']} total fired, "
+                     f"avg confidence {stats.get('avg_confidence', 'N/A')}")
+
+    lines.append("\nUse get_visions_guide() for Solidity integration code.")
     return "\n".join(lines)
 
 

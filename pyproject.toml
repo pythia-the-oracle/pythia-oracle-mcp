@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pythia-oracle-mcp"
-version = "0.3.0"
+version = "0.4.0"
 description = "Every smart contract deserves intelligence, not just data. Pythia Oracle MCP server — on-chain calculated indicators via Chainlink."
 readme = "README.md"
 license = "MIT"
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [
     { name = "Pythia Oracle", email = "ivan.jeremic@c3x-solutions.com" },
 ]
-keywords = ["mcp", "oracle", "chainlink", "defi", "indicators", "ema", "rsi", "vwap", "bollinger", "crypto", "on-chain", "technical-analysis", "ai-agent", "multi-chain", "smart-contracts", "model-context-protocol"]
+keywords = ["mcp", "oracle", "chainlink", "defi", "indicators", "ema", "rsi", "vwap", "bollinger", "crypto", "on-chain", "technical-analysis", "ai-agent", "multi-chain", "smart-contracts", "model-context-protocol", "visions", "market-intelligence"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
