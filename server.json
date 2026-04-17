@@ -6,12 +6,12 @@
     "url": "https://github.com/pythia-the-oracle/pythia-oracle-mcp",
     "source": "github"
   },
-  "version": "0.3.0",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "pythia-oracle-mcp",
-      "version": "0.3.0",
+      "version": "0.5.0",
       "transport": {
         "type": "stdio"
       },
