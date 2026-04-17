@@ -12,7 +12,7 @@ Pythia is the first oracle delivering calculated technical indicators on-chain �
 
 **Pythia Events** lets smart contracts subscribe to indicator conditions (RSI below 30, EMA crossover, Bollinger breakout) and get called automatically when they trigger. No keeper, no off-chain bot, no polling — your contract reacts to markets on its own.
 
-**Pythia Visions** delivers AI-calibrated market intelligence on-chain — 2 walk-forward validated BTC patterns (OVERSOLD_REVERSION 9/10 folds ~100/yr, CAPITULATION_EVENT 4/4 folds ~7/yr) across 9 years of history (2017-2026), evaluated every 6 hours. FREE to subscribe.
+**Pythia Visions** delivers AI-calibrated market intelligence on-chain — walk-forward validated patterns across 9 years of history (2017-2026), evaluated every 6 hours. FREE to subscribe. Live tokens: **BTC** (OVERSOLD_REVERSION 9/10 folds ~100/yr, CAPITULATION_EVENT 4/4 folds ~7/yr) and **ETH** (CAPITULATION_EVENT 5/5 folds ~13/yr).
 
 ## Why Pythia?
 
@@ -140,7 +140,7 @@ Calls `get_visions_guide()` — returns a contract that subscribes to VisionFire
 - **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.02), Speed (0.05), Complete (0.10)
 - **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
 - **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
-- **Pythia Visions:** AI-calibrated market intelligence — 2 walk-forward validated patterns (OVERSOLD_REVERSION and CAPITULATION_EVENT) with per-year fold validation, delivered on-chain via Chainlink. FREE to subscribe.
+- **Pythia Visions:** AI-calibrated market intelligence — walk-forward validated patterns per token, delivered on-chain via Chainlink. FREE to subscribe. Live: BTC (OVERSOLD_REVERSION, CAPITULATION_EVENT) and ETH (CAPITULATION_EVENT).
 
 ## Integration Examples
 

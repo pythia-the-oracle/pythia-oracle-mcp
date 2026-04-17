@@ -79,13 +79,16 @@ _FALLBACK_CONTRACTS = {
 
 _CONDITION_NAMES = {0: "ABOVE", 1: "BELOW", 2: "CROSSES_ABOVE", 3: "CROSSES_BELOW"}
 
-# Fallback Visions data — offline resilience (walk-forward validated v5, 2017-2026)
+# Fallback Visions data — offline resilience (walk-forward validated 2017-2026)
+# BTC v5 uses 0x50-0x6F range. ETH v1 uses 0x70-0x8F range.
 _VISIONS_REGISTRY = "0x39407eEc3Ba80746BC6156eD924D16C2689533Ed"
 _VISIONS_PATTERNS = [
-    {"name": "OVERSOLD_REVERSION", "code": "0x50", "accuracy": "58-66%",
+    {"name": "OVERSOLD_REVERSION", "code": "0x50", "token": "BTC", "accuracy": "58-66%",
      "avg_return": "+0.5% to +2%", "frequency": "~100/yr", "fold_validation": "9/10"},
-    {"name": "CAPITULATION_EVENT", "code": "0x60", "accuracy": "60-90%",
+    {"name": "CAPITULATION_EVENT", "code": "0x60", "token": "BTC", "accuracy": "60-90%",
      "avg_return": "+3% to +8%", "frequency": "~7/yr", "fold_validation": "4/4"},
+    {"name": "CAPITULATION_EVENT", "code": "0x70", "token": "ETH", "accuracy": "50-80%",
+     "avg_return": "+2% to +8%", "frequency": "~13/yr", "fold_validation": "5/5"},
 ]
 
 
@@ -862,16 +865,17 @@ async def get_visions_info() -> str:
 
     Returns the walk-forward validated patterns with accuracy stats, the Vision Registry
     contract address, subscription info (FREE), evaluation frequency, and
-    supported tokens. Visions (v5) are pattern detections that passed walk-forward
-    validation across 9 years of BTC data (2017-2026): OVERSOLD_REVERSION
-    (9/10 folds, ~100/yr) and CAPITULATION_EVENT (4/4 folds, ~7/yr).
+    supported tokens. Visions are pattern detections that passed walk-forward
+    validation across 9 years of history (2017-2026). Live tokens:
+      - BTC (v5): OVERSOLD_REVERSION (9/10 folds, ~100/yr) and CAPITULATION_EVENT (4/4 folds, ~7/yr)
+      - ETH (v1): CAPITULATION_EVENT (5/5 folds, ~13/yr)
     """
     data = await _fetch_data()
     visions = data.get("visions", {}) if data else {}
 
     registry = visions.get("registry", _VISIONS_REGISTRY)
     patterns = visions.get("patterns", _VISIONS_PATTERNS)
-    tokens = visions.get("tokens", ["BTC"])
+    tokens = visions.get("tokens", ["BTC", "ETH"])
     stats = visions.get("stats", {})
 
     lines = ["Pythia Visions — AI Market Intelligence On-Chain\n"]
@@ -882,18 +886,18 @@ async def get_visions_info() -> str:
     lines.append("")
 
     lines.append("Detected Patterns (validated 2017-2026, 75K+ candles):\n")
-    lines.append(f"  {'Pattern':<28} {'Code':<6} {'Accuracy':<10} {'Avg Return':<12} {'Samples'}")
-    lines.append(f"  {'-'*28} {'-'*6} {'-'*10} {'-'*12} {'-'*7}")
+    lines.append(f"  {'Token':<5} {'Pattern':<22} {'Code':<6} {'Accuracy':<10} {'Avg Return':<14} {'Frequency':<14} {'Folds'}")
+    lines.append(f"  {'-'*5} {'-'*22} {'-'*6} {'-'*10} {'-'*14} {'-'*14} {'-'*5}")
     for p in patterns:
         lines.append(
-            f"  {p['name']:<28} {p['code']:<6} {p['accuracy']:<10} "
-            f"{p['avg_return']:<12} {p['sample']}"
+            f"  {p.get('token', '?'):<5} {p['name']:<22} {p['code']:<6} {p['accuracy']:<10} "
+            f"{p['avg_return']:<14} {p['frequency']:<14} {p.get('fold_validation', '?')}"
         )
     lines.append("")
 
     lines.append("How It Works:")
-    lines.append("  1. Every 6h: read live indicators (EMA, RSI, Bollinger, VWAP, ATR)")
-    lines.append("  2. Mechanical pattern detection against walk-forward validated patterns")
+    lines.append("  1. Every 6h: read live indicators (EMA, RSI, Bollinger, VWAP, ATR) per token")
+    lines.append("  2. Mechanical pattern detection against token-specific walk-forward validated patterns")
     lines.append("  3. If pattern found: Pythia AI agent calibrates confidence (55-89)")
     lines.append("  4. Vision fires on-chain via Chainlink webhook")
     lines.append("  5. Subscribers receive VisionFired event with full payload")
@@ -903,7 +907,7 @@ async def get_visions_info() -> str:
     lines.append(f"Chain: Polygon PoS (mainnet)")
     lines.append(f"Subscription fee: FREE")
     lines.append(f"Tokens: {', '.join(tokens)}")
-    lines.append(f"Signal frequency: ~30 Visions/year for BTC")
+    lines.append(f"Signal frequency: ~107 Visions/year for BTC (100 OVERSOLD + 7 CAPITULATION), ~13/year for ETH")
     lines.append("")
 
     if stats.get("total_fired"):
@@ -953,11 +957,12 @@ contract MyVisionSubscriber {{
 
     // Token IDs are keccak256 hashes of the token name
     bytes32 public constant BTC = keccak256("BTC");
+    bytes32 public constant ETH = keccak256("ETH");
 
     // Fired by PythiaVisionRegistry when a pattern is detected
     event VisionFired(
-        bytes32 indexed tokenId,   // keccak256("BTC")
-        uint8 patternType,          // 0x11, 0x10, 0x21, 0x20, 0x30, 0x40
+        bytes32 indexed tokenId,   // keccak256("BTC") or keccak256("ETH")
+        uint8 patternType,          // 0x50-0x6F BTC range, 0x70-0x8F ETH range
         uint8 confidence,           // 55-89 (AI-calibrated)
         uint8 direction,            // 1 = BULLISH
         uint256 price,              // 18 decimals
@@ -968,32 +973,40 @@ contract MyVisionSubscriber {{
         registry = IPythiaVisionRegistry(_registry);
     }}
 
-    /// @notice Subscribe to BTC Visions. FREE — no LINK required.
+    /// @notice Subscribe to Visions for a token. FREE — no LINK required.
+    function subscribeToken(bytes32 tokenId) external {{
+        registry.subscribe(tokenId);
+    }}
+
+    /// @notice Unsubscribe.
+    function unsubscribeToken(bytes32 tokenId) external {{
+        registry.unsubscribe(tokenId);
+    }}
+
+    /// @notice Subscribe to BTC Visions.
     function subscribeBTC() external {{
         registry.subscribe(BTC);
     }}
 
-    /// @notice Unsubscribe from BTC Visions.
-    function unsubscribeBTC() external {{
-        registry.unsubscribe(BTC);
-    }}
-
-    /// @notice Check if this contract is subscribed.
-    function isSubscribed() external view returns (bool) {{
-        return registry.isSubscribed(address(this), BTC);
+    /// @notice Subscribe to ETH Visions.
+    function subscribeETH() external {{
+        registry.subscribe(ETH);
     }}
 }}
 ```
 
 Steps:
 1. Deploy with (_registry) = {registry}
-2. Call subscribeBTC() — no LINK needed, subscription is FREE
+2. Call subscribeBTC() / subscribeETH() — no LINK needed, subscription is FREE
 3. Listen for VisionFired events on the registry contract via RPC/WebSocket
 4. Decode the payload bytes to get the full analysis JSON
 
-Pattern Types (v5, walk-forward validated):
-  0x50 = OVERSOLD_REVERSION  (~100/yr, 9/10 folds, accuracy range 58-66%)
-  0x60 = CAPITULATION_EVENT  (~7/yr, 4/4 folds, accuracy range 60-90%)
+Pattern Types (walk-forward validated):
+  BTC (v5):
+    0x50 = OVERSOLD_REVERSION  (~100/yr, 9/10 folds, accuracy range 58-66%)
+    0x60 = CAPITULATION_EVENT  (~7/yr, 4/4 folds, accuracy range 60-90%)
+  ETH (v1):
+    0x70 = CAPITULATION_EVENT  (~13/yr, 5/5 folds, accuracy range 50-80%)
 
 Payload JSON includes: indicators (RSI, EMA, Bollinger, VWAP, ATR),
 pattern details, AI-calibrated confidence, analysis narrative,
@@ -1001,6 +1014,7 @@ and feeds-to-watch for confirmation.
 
 Token IDs: keccak256 of the token name.
   BTC = keccak256("BTC") = 0xe98e2830be1a7e4156d656a7505e65d08c67660dc618072422e9c78053c261e9
+  ETH = keccak256("ETH") = 0xaaaebeba3810b1e6b70781f14b2d72c1cb89c0b2b320c43bb67ff79f562f5ff4
 
 Deployment:
   Mainnet: _registry={registry}"""
@@ -1012,6 +1026,7 @@ async def get_vision_history(token: str = "BTC") -> str:
 
     Args:
         token: Token symbol to check (default: BTC). Case-insensitive.
+               Currently live: BTC, ETH.
     """
     data = await _fetch_data()
     visions = data.get("visions", {}) if data else {}
