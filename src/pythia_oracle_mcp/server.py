@@ -79,15 +79,13 @@ _FALLBACK_CONTRACTS = {
 
 _CONDITION_NAMES = {0: "ABOVE", 1: "BELOW", 2: "CROSSES_ABOVE", 3: "CROSSES_BELOW"}
 
-# Fallback Visions data — offline resilience (static backtest results 2017-2026)
+# Fallback Visions data — offline resilience (walk-forward validated v5, 2017-2026)
 _VISIONS_REGISTRY = "0x39407eEc3Ba80746BC6156eD924D16C2689533Ed"
 _VISIONS_PATTERNS = [
-    {"name": "CAPITULATION_STRONG", "code": "0x11", "accuracy": "85-87%", "avg_return": "+7-8%", "sample": 62},
-    {"name": "CAPITULATION_BOUNCE", "code": "0x10", "accuracy": "80%", "avg_return": "+5-7%", "sample": 78},
-    {"name": "EMA_DIVERGENCE_STRONG", "code": "0x21", "accuracy": "89%", "avg_return": "+6%", "sample": 36},
-    {"name": "EMA_DIVERGENCE_SNAP", "code": "0x20", "accuracy": "74-80%", "avg_return": "+4-5%", "sample": 67},
-    {"name": "BOLLINGER_EXTREME", "code": "0x30", "accuracy": "74%", "avg_return": "+3-4%", "sample": 38},
-    {"name": "OVERBOUGHT_CONTINUATION", "code": "0x40", "accuracy": "60-65%", "avg_return": "+1-2%", "sample": 127},
+    {"name": "OVERSOLD_REVERSION", "code": "0x50", "accuracy": "58-66%",
+     "avg_return": "+0.5% to +2%", "frequency": "~100/yr", "fold_validation": "9/10"},
+    {"name": "CAPITULATION_EVENT", "code": "0x60", "accuracy": "60-90%",
+     "avg_return": "+3% to +8%", "frequency": "~7/yr", "fold_validation": "4/4"},
 ]
 
 
@@ -862,10 +860,11 @@ async def subscribe_info(
 async def get_visions_info() -> str:
     """Get overview of Pythia Visions — AI-calibrated market intelligence on-chain.
 
-    Returns the 6 backtested patterns with accuracy stats, the Vision Registry
+    Returns the walk-forward validated patterns with accuracy stats, the Vision Registry
     contract address, subscription info (FREE), evaluation frequency, and
-    supported tokens. Visions are pattern detections validated over 8.5 years
-    of BTC data (2017-2026) with 74-89% historical accuracy.
+    supported tokens. Visions (v5) are pattern detections that passed walk-forward
+    validation across 9 years of BTC data (2017-2026): OVERSOLD_REVERSION
+    (9/10 folds, ~100/yr) and CAPITULATION_EVENT (4/4 folds, ~7/yr).
     """
     data = await _fetch_data()
     visions = data.get("visions", {}) if data else {}
@@ -992,13 +991,9 @@ Steps:
 3. Listen for VisionFired events on the registry contract via RPC/WebSocket
 4. Decode the payload bytes to get the full analysis JSON
 
-Pattern Types:
-  0x11 = CAPITULATION_STRONG (85-87% accuracy)
-  0x10 = CAPITULATION_BOUNCE (80%)
-  0x21 = EMA_DIVERGENCE_STRONG (89%)
-  0x20 = EMA_DIVERGENCE_SNAP (74-80%)
-  0x30 = BOLLINGER_EXTREME (74%)
-  0x40 = OVERBOUGHT_CONTINUATION (60-65%)
+Pattern Types (v5, walk-forward validated):
+  0x50 = OVERSOLD_REVERSION  (~100/yr, 9/10 folds, accuracy range 58-66%)
+  0x60 = CAPITULATION_EVENT  (~7/yr, 4/4 folds, accuracy range 60-90%)
 
 Payload JSON includes: indicators (RSI, EMA, Bollinger, VWAP, ATR),
 pattern details, AI-calibrated confidence, analysis narrative,

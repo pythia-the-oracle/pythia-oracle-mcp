@@ -12,7 +12,7 @@ Pythia is the first oracle delivering calculated technical indicators on-chain �
 
 **Pythia Events** lets smart contracts subscribe to indicator conditions (RSI below 30, EMA crossover, Bollinger breakout) and get called automatically when they trigger. No keeper, no off-chain bot, no polling — your contract reacts to markets on its own.
 
-**Pythia Visions** delivers AI-calibrated market intelligence on-chain — 6 backtested patterns (2017-2026) with 74-89% accuracy, evaluated every 6 hours. FREE to subscribe.
+**Pythia Visions** delivers AI-calibrated market intelligence on-chain — 2 walk-forward validated BTC patterns (OVERSOLD_REVERSION 9/10 folds ~100/yr, CAPITULATION_EVENT 4/4 folds ~7/yr) across 9 years of history (2017-2026), evaluated every 6 hours. FREE to subscribe.
 
 ## Why Pythia?
 
@@ -88,7 +88,7 @@ python -m pythia_oracle_mcp
 | `get_events_info` | How Pythia Events work — subscribe to indicator conditions, get triggered on-chain |
 | `get_events_guide` | Solidity code and deployment steps for event subscriptions |
 | `subscribe_info` | Subscription details — conditions, pricing, refund mechanics |
-| `get_visions_info` | Pythia Visions overview — 6 backtested patterns, accuracy stats, contract address |
+| `get_visions_info` | Pythia Visions overview — walk-forward validated patterns, fire-frequency disclosure, contract address |
 | `get_visions_guide` | Solidity code to subscribe to Visions and listen for VisionFired events |
 | `get_vision_history` | Recent Visions fired for a token with pattern breakdown and confidence stats |
 
@@ -122,7 +122,7 @@ Calls `get_events_guide()` — returns a deployable EventSubscriber contract wit
 
 > "What are Pythia Visions? What patterns does it detect?"
 
-Calls `get_visions_info()` — returns 6 backtested patterns with accuracy, contract address, and how it works.
+Calls `get_visions_info()` — returns walk-forward validated patterns with accuracy range, fire frequency, contract address, and how it works.
 
 > "Show me recent BTC Visions that fired"
 
@@ -140,7 +140,7 @@ Calls `get_visions_guide()` — returns a contract that subscribes to VisionFire
 - **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.02), Speed (0.05), Complete (0.10)
 - **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
 - **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
-- **Pythia Visions:** AI-calibrated market intelligence — 6 backtested patterns (capitulation, EMA divergence, Bollinger extreme, overbought continuation) with 74-89% accuracy, delivered on-chain via Chainlink. FREE to subscribe.
+- **Pythia Visions:** AI-calibrated market intelligence — 2 walk-forward validated patterns (OVERSOLD_REVERSION and CAPITULATION_EVENT) with per-year fold validation, delivered on-chain via Chainlink. FREE to subscribe.
 
 ## Integration Examples
 
