@@ -893,8 +893,8 @@ async def get_visions_info() -> str:
 
     lines.append("How It Works:")
     lines.append("  1. Every 6h: read live indicators (EMA, RSI, Bollinger, VWAP, ATR)")
-    lines.append("  2. Mechanical pattern detection checks 6 known patterns")
-    lines.append("  3. If pattern found: Claude Haiku calibrates confidence (55-89)")
+    lines.append("  2. Mechanical pattern detection against walk-forward validated patterns")
+    lines.append("  3. If pattern found: Pythia AI agent calibrates confidence (55-89)")
     lines.append("  4. Vision fires on-chain via Chainlink webhook")
     lines.append("  5. Subscribers receive VisionFired event with full payload")
     lines.append("")
@@ -1045,7 +1045,7 @@ async def get_vision_history(token: str = "BTC") -> str:
         lines.append(f"    Confidence: {v.get('confidence', '?')}")
         lines.append(f"    Direction:  {v.get('direction', '?')}")
         lines.append(f"    Price:      ${v.get('price_usd', 0):,.2f}")
-        lines.append(f"    Haiku AI:   {'Yes' if v.get('haiku_available') else 'No'}")
+        lines.append(f"    AI agent:   {'Yes' if v.get('haiku_available') else 'No'}")
         lines.append("")
 
     # Pattern breakdown
