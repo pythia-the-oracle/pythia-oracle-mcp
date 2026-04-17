@@ -79,15 +79,15 @@ _FALLBACK_CONTRACTS = {
 
 _CONDITION_NAMES = {0: "ABOVE", 1: "BELOW", 2: "CROSSES_ABOVE", 3: "CROSSES_BELOW"}
 
-# Fallback Visions data — offline resilience (walk-forward validated 2017-2026)
-# BTC v5 uses 0x50-0x6F range. ETH v1 uses 0x70-0x8F range.
+# Fallback Visions data — offline resilience (walk-forward validated 2017-2026).
+# Per-token high nibble: BTC=0x1_, ETH=0x2_. Pattern index in low nibble.
 _VISIONS_REGISTRY = "0x39407eEc3Ba80746BC6156eD924D16C2689533Ed"
 _VISIONS_PATTERNS = [
-    {"name": "OVERSOLD_REVERSION", "code": "0x50", "token": "BTC", "accuracy": "58-66%",
+    {"name": "OVERSOLD_REVERSION", "code": "0x10", "token": "BTC", "accuracy": "58-66%",
      "avg_return": "+0.5% to +2%", "frequency": "~100/yr", "fold_validation": "9/10"},
-    {"name": "CAPITULATION_EVENT", "code": "0x60", "token": "BTC", "accuracy": "60-90%",
+    {"name": "CAPITULATION_EVENT", "code": "0x11", "token": "BTC", "accuracy": "60-90%",
      "avg_return": "+3% to +8%", "frequency": "~7/yr", "fold_validation": "4/4"},
-    {"name": "CAPITULATION_EVENT", "code": "0x70", "token": "ETH", "accuracy": "50-80%",
+    {"name": "CAPITULATION_EVENT", "code": "0x20", "token": "ETH", "accuracy": "50-80%",
      "avg_return": "+2% to +8%", "frequency": "~13/yr", "fold_validation": "5/5"},
 ]
 
@@ -962,7 +962,7 @@ contract MyVisionSubscriber {{
     // Fired by PythiaVisionRegistry when a pattern is detected
     event VisionFired(
         bytes32 indexed tokenId,   // keccak256("BTC") or keccak256("ETH")
-        uint8 patternType,          // 0x50-0x6F BTC range, 0x70-0x8F ETH range
+        uint8 patternType,          // per-token high nibble: BTC=0x1_, ETH=0x2_
         uint8 confidence,           // 55-89 (AI-calibrated)
         uint8 direction,            // 1 = BULLISH
         uint256 price,              // 18 decimals
@@ -1002,11 +1002,11 @@ Steps:
 4. Decode the payload bytes to get the full analysis JSON
 
 Pattern Types (walk-forward validated):
-  BTC (v5):
-    0x50 = OVERSOLD_REVERSION  (~100/yr, 9/10 folds, accuracy range 58-66%)
-    0x60 = CAPITULATION_EVENT  (~7/yr, 4/4 folds, accuracy range 60-90%)
-  ETH (v1):
-    0x70 = CAPITULATION_EVENT  (~13/yr, 5/5 folds, accuracy range 50-80%)
+  BTC (v5) — 0x1_ range:
+    0x10 = OVERSOLD_REVERSION  (~100/yr, 9/10 folds, accuracy range 58-66%)
+    0x11 = CAPITULATION_EVENT  (~7/yr, 4/4 folds, accuracy range 60-90%)
+  ETH (v1) — 0x2_ range:
+    0x20 = CAPITULATION_EVENT  (~13/yr, 5/5 folds, accuracy range 50-80%)
 
 Payload JSON includes: indicators (RSI, EMA, Bollinger, VWAP, ATR),
 pattern details, AI-calibrated confidence, analysis narrative,
