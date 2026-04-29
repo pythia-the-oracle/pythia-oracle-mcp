@@ -23,7 +23,7 @@ mcp = FastMCP(
         "Chainlink across supported networks. Use these tools to explore available data, check "
         "oracle reliability, get integration code, learn about Pythia Events "
         "(on-chain indicator alert subscriptions), and Pythia Visions "
-        "(AI-calibrated market intelligence with backtested pattern detection)."
+        "(walk-forward validated market intelligence on-chain — pattern type, confidence, indicator snapshot, and feeds-to-watch for confirmation)."
     ),
 )
 
@@ -81,14 +81,55 @@ _CONDITION_NAMES = {0: "ABOVE", 1: "BELOW", 2: "CROSSES_ABOVE", 3: "CROSSES_BELO
 
 # Fallback Visions data — offline resilience (walk-forward validated 2017-2026).
 # Per-token high nibble: BTC=0x1_, ETH=0x2_. Pattern index in low nibble.
+# v2 schema (matches feed-status.json visions.patterns) — see
+# dataengine/scripts/generate_site_data.py _VISIONS_PATTERNS for canonical source.
 _VISIONS_REGISTRY = "0x39407eEc3Ba80746BC6156eD924D16C2689533Ed"
 _VISIONS_PATTERNS = [
-    {"name": "OVERSOLD_REVERSION", "code": "0x10", "token": "BTC", "accuracy": "58-66%",
-     "avg_return": "+0.5% to +2%", "frequency": "~100/yr", "fold_validation": "9/10"},
-    {"name": "CAPITULATION_EVENT", "code": "0x11", "token": "BTC", "accuracy": "60-90%",
-     "avg_return": "+3% to +8%", "frequency": "~7/yr", "fold_validation": "4/4"},
-    {"name": "CAPITULATION_EVENT", "code": "0x20", "token": "ETH", "accuracy": "50-80%",
-     "avg_return": "+2% to +8%", "frequency": "~13/yr", "fold_validation": "5/5"},
+    {
+        "name": "OVERSOLD_REVERSION", "code": "0x10", "token": "BTC", "direction": "BULLISH",
+        "data_span_years": "2017-2026",
+        "accuracy_range_pct": {"min": 58, "max": 66, "point": 62},
+        "fires_per_year_estimate": 100,
+        "fold_validation_ratio": {"passed": 9, "total": 10, "ratio": 0.9},
+        "accuracy": "58-66%", "avg_return": "+0.5% to +2%",
+        "frequency": "~100/yr", "fold_validation": "9/10",
+        "failure_profile": {
+            "total_fires_backtest": 1012, "up_rate_pct": 57.5, "base_up_rate_pct": 52.1,
+            "edge_vs_baseline_pp": 5.4, "median_return_pct": 0.68,
+            "avg_return_when_correct_pct": 3.74, "avg_return_when_wrong_pct": -3.88,
+            "worst_drawdown_pct": -27.14, "best_return_pct": 32.74,
+        },
+    },
+    {
+        "name": "CAPITULATION_EVENT", "code": "0x11", "token": "BTC", "direction": "BULLISH",
+        "data_span_years": "2017-2026",
+        "accuracy_range_pct": {"min": 60, "max": 90, "point": 75},
+        "fires_per_year_estimate": 7,
+        "fold_validation_ratio": {"passed": 4, "total": 4, "ratio": 1.0},
+        "accuracy": "60-90%", "avg_return": "+3% to +8%",
+        "frequency": "~7/yr", "fold_validation": "4/4",
+        "failure_profile": {
+            "total_fires_backtest": 73, "up_rate_pct": 78.1, "base_up_rate_pct": 52.1,
+            "edge_vs_baseline_pp": 26.0, "median_return_pct": 5.16,
+            "avg_return_when_correct_pct": 9.32, "avg_return_when_wrong_pct": -6.17,
+            "worst_drawdown_pct": -21.24, "best_return_pct": 32.74,
+        },
+    },
+    {
+        "name": "CAPITULATION_EVENT", "code": "0x20", "token": "ETH", "direction": "BULLISH",
+        "data_span_years": "2017-2026",
+        "accuracy_range_pct": {"min": 50, "max": 80, "point": 65},
+        "fires_per_year_estimate": 13,
+        "fold_validation_ratio": {"passed": 5, "total": 5, "ratio": 1.0},
+        "accuracy": "50-80%", "avg_return": "+2% to +8%",
+        "frequency": "~13/yr", "fold_validation": "5/5",
+        "failure_profile": {
+            "total_fires_backtest": 126, "up_rate_pct": 75.4, "base_up_rate_pct": 51.3,
+            "edge_vs_baseline_pp": 24.1, "median_return_pct": 3.99,
+            "avg_return_when_correct_pct": 9.11, "avg_return_when_wrong_pct": -7.46,
+            "worst_drawdown_pct": -28.85, "best_return_pct": 38.20,
+        },
+    },
 ]
 
 
@@ -861,7 +902,7 @@ async def subscribe_info(
 
 @mcp.tool()
 async def get_visions_info() -> str:
-    """Get overview of Pythia Visions — AI-calibrated market intelligence on-chain.
+    """Get overview of Pythia Visions — walk-forward validated market intelligence on-chain.
 
     Returns the walk-forward validated patterns with accuracy stats, the Vision Registry
     contract address, subscription info (FREE), evaluation frequency, and
@@ -878,10 +919,10 @@ async def get_visions_info() -> str:
     tokens = visions.get("tokens", ["BTC", "ETH"])
     stats = visions.get("stats", {})
 
-    lines = ["Pythia Visions — AI Market Intelligence On-Chain\n"]
+    lines = ["Pythia Visions — Walk-Forward Validated Market Intelligence On-Chain\n"]
     lines.append(
-        "Backtested, AI-calibrated pattern detections delivered on-chain via "
-        "Chainlink. Evaluated every 6 hours. FREE to subscribe."
+        "Walk-forward validated pattern detections delivered on-chain via "
+        "Chainlink. FREE to subscribe."
     )
     lines.append("")
 
@@ -895,12 +936,10 @@ async def get_visions_info() -> str:
         )
     lines.append("")
 
-    lines.append("How It Works:")
-    lines.append("  1. Every 6h: read live indicators (EMA, RSI, Bollinger, VWAP, ATR) per token")
-    lines.append("  2. Mechanical pattern detection against token-specific walk-forward validated patterns")
-    lines.append("  3. If pattern found: Pythia AI agent calibrates confidence (55-89)")
-    lines.append("  4. Vision fires on-chain via Chainlink webhook")
-    lines.append("  5. Subscribers receive VisionFired event with full payload")
+    lines.append("How to Use:")
+    lines.append("  1. Subscribe — one call, free, permissionless: subscribe(keccak256(\"BTC\"))")
+    lines.append("  2. Receive — your contract gets VisionFired events with pattern, confidence, indicators, analysis, and feeds-to-watch")
+    lines.append("  3. React — read the payload on-chain, auto-subscribe to confirmation Events, trigger your strategy")
     lines.append("")
 
     lines.append(f"Vision Registry: {registry}")
@@ -934,7 +973,7 @@ async def get_visions_guide() -> str:
     mainnet = _get_mainnet(data)
     link_token = mainnet["link_token"]
 
-    return f"""Pythia Visions Integration — AI Market Intelligence On-Chain
+    return f"""Pythia Visions Integration — Walk-Forward Validated Market Intelligence On-Chain
 
 Vision Registry (Mainnet): {registry}
 LINK Token: {link_token}
@@ -963,7 +1002,7 @@ contract MyVisionSubscriber {{
     event VisionFired(
         bytes32 indexed tokenId,   // keccak256("BTC") or keccak256("ETH")
         uint8 patternType,          // per-token high nibble: BTC=0x1_, ETH=0x2_
-        uint8 confidence,           // 55-89 (AI-calibrated)
+        uint8 confidence,           // Confidence score within pattern's historical range
         uint8 direction,            // 1 = BULLISH
         uint256 price,              // 18 decimals
         bytes payload               // Full JSON (indicators + analysis)
@@ -1009,7 +1048,7 @@ Pattern Types (walk-forward validated):
     0x20 = CAPITULATION_EVENT  (~13/yr, 5/5 folds, accuracy range 50-80%)
 
 Payload JSON includes: indicators (RSI, EMA, Bollinger, VWAP, ATR),
-pattern details, AI-calibrated confidence, analysis narrative,
+pattern details, confidence score, analysis narrative,
 and feeds-to-watch for confirmation.
 
 Token IDs: keccak256 of the token name.
@@ -1060,7 +1099,6 @@ async def get_vision_history(token: str = "BTC") -> str:
         lines.append(f"    Confidence: {v.get('confidence', '?')}")
         lines.append(f"    Direction:  {v.get('direction', '?')}")
         lines.append(f"    Price:      ${v.get('price_usd', 0):,.2f}")
-        lines.append(f"    AI agent:   {'Yes' if v.get('haiku_available') else 'No'}")
         lines.append("")
 
     # Pattern breakdown
@@ -1084,8 +1122,292 @@ async def get_vision_history(token: str = "BTC") -> str:
         lines.append(f"Overall: {stats['total_fired']} total fired, "
                      f"avg confidence {stats.get('avg_confidence', 'N/A')}")
 
-    lines.append("\nUse get_visions_guide() for Solidity integration code.")
+    lines.append("\nUse get_vision_payload(vision_id) for the full enriched object")
+    lines.append("(failure profile, cooldown context, concurrent fires).")
+    lines.append("Use get_visions_guide() for Solidity integration code.")
     return "\n".join(lines)
+
+
+@mcp.tool()
+async def get_vision_payload(vision_id: int) -> str:
+    """Get the full enriched object for a fired Pythia Vision by id.
+
+    Returns the rich AI-facing companion to the on-chain VisionFired event:
+    pattern metadata with numeric ranges, failure profile (avg return when
+    correct, avg drawdown when wrong, worst drawdown), cooldown context
+    (hours since last same-pattern fire on this token, confidence delta vs
+    last fire), and concurrent fires from other tokens within the last 24h.
+
+    Lightweight on-chain consumers can decode the VisionFired payload bytes
+    directly. AI agents reasoning about a specific Vision should use this
+    tool — it contains the data needed to size positions and compare against
+    historical failure modes, which the on-chain event payload does not.
+
+    Args:
+        vision_id: integer id of the Vision (returned by get_vision_history)
+
+    Returns:
+        Multi-section text report. If vision_id is not in the recent window
+        (last 20 fires per token), returns a helpful pointer to history.
+    """
+    data = await _fetch_data()
+    visions = data.get("visions", {}) if data else {}
+    recent = visions.get("recent", [])
+    patterns = visions.get("patterns", _VISIONS_PATTERNS)
+
+    found = next((v for v in recent if v.get("id") == vision_id), None)
+    if not found:
+        return (
+            f"Vision id={vision_id} not in recent fires (last 20 per token).\n"
+            f"Use get_vision_history(token=...) to find available ids per token."
+        )
+
+    pattern_meta = next(
+        (p for p in patterns
+         if p.get("name") == found.get("pattern_name")
+         and p.get("token") == found.get("token")),
+        None,
+    )
+
+    out = [
+        f"Pythia Vision — id={vision_id}",
+        f"Schema version: {visions.get('schema_version', 'v1')}",
+        "",
+        "─── Fire ───────────────────────────────────────",
+        f"  Token:         {found.get('token')}",
+        f"  Pattern:       {found.get('pattern_name')} ({hex(found.get('pattern_type', 0)) if isinstance(found.get('pattern_type'), int) else found.get('pattern_type')})",
+        f"  Direction:     {found.get('direction')}",
+        f"  Confidence:    {found.get('confidence')} / 100",
+        f"  Price at fire: ${found.get('price_usd', 0):,.2f}",
+        f"  Fired at:      {found.get('fired_at')}",
+        f"  Chain:         {found.get('chain')}",
+        f"  AI narrative:  {'available' if found.get('haiku_available') else 'mechanical only (AI agent unavailable at fire time)'}",
+    ]
+
+    # Cooldown / context
+    out += ["", "─── Cooldown context ──────────────────────────"]
+    cd_same = found.get("cooldown_hours_same_pattern")
+    cd_tok = found.get("cooldown_hours_token")
+    last_conf = found.get("last_same_pattern_confidence")
+    delta = found.get("confidence_delta")
+    if cd_same is None and cd_tok is None:
+        out.append("  No prior fires for this token — first Vision recorded.")
+    else:
+        if cd_same is not None:
+            out.append(f"  Hours since last same-pattern fire ({found.get('pattern_name')}): {cd_same}")
+            if last_conf is not None:
+                out.append(f"  Last same-pattern confidence: {last_conf}  →  delta: {delta:+d}")
+        else:
+            out.append(f"  First time {found.get('pattern_name')} has fired on {found.get('token')}.")
+        if cd_tok is not None and cd_tok != cd_same:
+            out.append(f"  Hours since last fire on {found.get('token')} (any pattern): {cd_tok}")
+
+    # Concurrent
+    concurrent = found.get("concurrent_patterns_24h", []) or []
+    out += ["", "─── Concurrent fires (last 24h, other contexts) ──"]
+    if not concurrent:
+        out.append("  No other fires in the prior 24h — this Vision is idiosyncratic, not market-wide.")
+    else:
+        for c in concurrent:
+            out.append(f"  {c.get('fired_at')}  {c.get('token')} {c.get('pattern_name')}  conf={c.get('confidence')}")
+        same_token_count = sum(1 for c in concurrent if c.get("token") == found.get("token"))
+        cross_token_count = len(concurrent) - same_token_count
+        if cross_token_count >= 2:
+            out.append(f"  → {cross_token_count} cross-token fires in last 24h suggests market-wide context.")
+
+    # Failure profile
+    out += ["", "─── Failure profile (9-year backtest) ─────────"]
+    if pattern_meta:
+        fp = pattern_meta.get("failure_profile", {})
+        out.append(f"  Pattern:                {pattern_meta.get('name')} ({pattern_meta.get('code')})")
+        out.append(f"  Data span:              {pattern_meta.get('data_span_years')}")
+        out.append(f"  Total fires (backtest): {fp.get('total_fires_backtest', '?')}")
+        out.append(f"  Up-rate (24h):          {fp.get('up_rate_pct', '?')}%  (vs {fp.get('base_up_rate_pct', '?')}% baseline → +{fp.get('edge_vs_baseline_pp', '?')}pp edge)")
+        out.append(f"  Avg return when correct: {fp.get('avg_return_when_correct_pct', '?'):+}%")
+        out.append(f"  Avg return when wrong:   {fp.get('avg_return_when_wrong_pct', '?'):+}%  ← drawdown profile")
+        out.append(f"  Worst single drawdown:   {fp.get('worst_drawdown_pct', '?'):+}%")
+        out.append(f"  Best single return:      {fp.get('best_return_pct', '?'):+}%")
+        out.append(f"  Median 24h return:       {fp.get('median_return_pct', '?'):+}%")
+        out.append("")
+        ar = pattern_meta.get("accuracy_range_pct", {})
+        fv = pattern_meta.get("fold_validation_ratio", {})
+        out.append(f"  Accuracy range:         {ar.get('min')}–{ar.get('max')}% (point: {ar.get('point')}%)")
+        out.append(f"  Fold validation:        {fv.get('passed')}/{fv.get('total')} ({fv.get('ratio', 0)*100:.0f}%)")
+        out.append(f"  Fires/year (estimate):  {pattern_meta.get('fires_per_year_estimate')}")
+    else:
+        out.append("  Pattern metadata not found in catalog. Use get_visions_info() for catalog.")
+
+    out.append("")
+    out.append("Note: failure profile is from backtest. Live calibration arrives once vision_outcomes")
+    out.append("populates (outcome-tracking cron).")
+
+    return "\n".join(out)
+
+
+@mcp.tool()
+async def lookup_event_feed(feed_id_hex: str) -> str:
+    """Reverse-lookup a Pythia Event feedId (bytes32) to its human-readable feed name.
+
+    Subscribers receive `bytes32 feedId` in SubscriptionCreated and PythiaEvent
+    events. This tool maps that hash back to the canonical feed name (e.g.
+    'pol_RSI_5M_14') so dApps don't need to maintain their own feedId → name
+    table or query the registry contract on every event.
+
+    Args:
+        feed_id_hex: bytes32 hash, with or without '0x' prefix, any case.
+
+    Returns:
+        Single-section report with feed_name + matching token + indicator
+        suffix. If the hash is not in the registered lookup table, returns
+        a diagnostic pointer.
+    """
+    h = feed_id_hex.strip().lower()
+    if not h.startswith("0x"):
+        h = "0x" + h
+
+    data = await _fetch_data()
+    events = data.get("events", {}) if data else {}
+    lookup = events.get("feed_hash_lookup", {})
+
+    feed_name = lookup.get(h)
+    if not feed_name:
+        return (
+            f"Feed id {feed_id_hex} not found in registered lookup table.\n"
+            "Possible reasons:\n"
+            "  - Invalid hash (must be keccak256(feed_name) as bytes32)\n"
+            "  - Feed not yet registered with the Event registry\n"
+            "  - Feed deactivated\n"
+            f"Total registered feeds: {len(lookup)}. Use list_tokens() + "
+            "get_token_feeds(engine_id) to discover live feed names."
+        )
+
+    parts = feed_name.split("_", 1)
+    engine_id = parts[0] if parts else feed_name
+    suffix = parts[1] if len(parts) > 1 else ""
+
+    tokens = data.get("tokens", []) if data else []
+    token = next((t for t in tokens if t.get("engine_id") == engine_id), None)
+
+    out = [
+        f"Feed name: {feed_name}",
+        f"Feed ID:   {h}",
+    ]
+    if token:
+        out.append(f"Token:     {token.get('symbol')} ({token.get('name')})")
+        out.append(f"Engine id: {engine_id}")
+    if suffix:
+        out.append(f"Indicator: {suffix}")
+    return "\n".join(out)
+
+
+@mcp.tool()
+async def list_subscriptions(owner_address: str) -> str:
+    """Enumerate active Pythia Event subscriptions owned by an address.
+
+    Returns every subscription where active=true (not yet fired, expired, or
+    cancelled). Without this tool, dApps and dashboards have to replay every
+    SubscriptionCreated log from the registry deploy block to discover what
+    an owner is currently subscribed to.
+
+    Args:
+        owner_address: subscriber wallet address ('0x...', case-insensitive).
+
+    Returns:
+        Multi-section report listing each active subscription with feed name,
+        condition + threshold, expiry, registry address, and creation tx.
+    """
+    addr = owner_address.strip().lower()
+    if not addr.startswith("0x"):
+        addr = "0x" + addr
+
+    data = await _fetch_data()
+    events = data.get("events", {}) if data else {}
+    subs = events.get("subscriptions", [])
+
+    matched = [s for s in subs if (s.get("owner") or "").lower() == addr]
+
+    if not matched:
+        return (
+            f"No active subscriptions for {addr}.\n"
+            "This means: never subscribed on a tracked registry, all "
+            "subscriptions already fired / expired / cancelled, or the\n"
+            "off-chain sync hasn't caught up yet (event_sync.py runs every "
+            "2 minutes)."
+        )
+
+    out = [
+        f"Active Pythia Event subscriptions for {addr}",
+        f"Count: {len(matched)}",
+        "",
+    ]
+    for i, s in enumerate(matched, 1):
+        out.append(f"[{i}] sub_id={s.get('sub_id')} on {s.get('source_chain')}")
+        out.append(f"    Registry:   {s.get('registry')}")
+        feed_id = s.get("feed_id") or ""
+        feed_id_short = (feed_id[:12] + "…") if len(feed_id) > 14 else feed_id
+        out.append(f"    Feed:       {s.get('feed_name', '?')} ({feed_id_short})")
+        out.append(f"    Condition:  {s.get('condition')} {s.get('threshold')}")
+        out.append(f"    Feed chain: {s.get('feed_chain')}")
+        out.append(f"    Expires:    {s.get('expires_at')}")
+        out.append(f"    Created:    {s.get('created_at')}")
+        if s.get("tx_hash"):
+            out.append(f"    Tx:         {s.get('tx_hash')}")
+        out.append("")
+
+    out.append(
+        "Cancel early via cancelSubscription(sub_id) on the registry — "
+        "refunds remaining whole-day LINK."
+    )
+    return "\n".join(out)
+
+
+@mcp.tool()
+async def get_feed_value(feed_name: str) -> str:
+    """Get the latest computed value of a Pythia indicator feed.
+
+    Reads from the live cache (feed_values table) populated by the indicator
+    pipeline on every cycle. Off-chain AI agents use this when reasoning
+    about a Vision context, choosing an Event threshold, or sanity-checking
+    a feed's current level. On-chain consumers should request the value
+    through oracle.request() to get a Chainlink-attested response — see
+    get_integration_guide().
+
+    Args:
+        feed_name: full feed name (e.g. 'bitcoin_RSI_1H_14', 'pol_EMA_5M_20').
+
+    Returns:
+        Latest value + computed_at + chain, one block per chain if a feed
+        exists on multiple chains. If the feed has no cached value, returns
+        a diagnostic pointer (warm-up window, deactivated, or unknown name).
+    """
+    data = await _fetch_data()
+    feeds = data.get("feed_values_current", []) if data else []
+
+    matches = [f for f in feeds if f.get("feed_name") == feed_name]
+    if not matches:
+        return (
+            f"Feed '{feed_name}' has no current value in the live cache.\n"
+            "Possible reasons:\n"
+            "  - Feed name not registered (use list_tokens() + "
+            "get_token_feeds(engine_id) to discover)\n"
+            "  - Feed inside its warm-up window (1H/1D/1W indicators on "
+            "freshly-onboarded tokens)\n"
+            "  - Pipeline degraded — check check_oracle_health()"
+        )
+
+    out = [f"Feed: {feed_name}"]
+    for m in matches:
+        out.append("")
+        out.append(f"  Chain:       {m.get('chain')}")
+        out.append(f"  Value:       {m.get('value')}")
+        out.append(f"  Computed at: {m.get('computed_at')}")
+    out.append("")
+    out.append(
+        "Cached value updated by the indicator pipeline. For a Chainlink-"
+        "attested on-chain value, use oracle.request() — see "
+        "get_integration_guide()."
+    )
+    return "\n".join(out)
 
 
 # ---------------------------------------------------------------------------
