@@ -12,7 +12,7 @@ Pythia is the first oracle delivering calculated technical indicators on-chain �
 
 **Pythia Events** lets smart contracts subscribe to indicator conditions (RSI below 30, EMA crossover, Bollinger breakout) and get called automatically when they trigger. No keeper, no off-chain bot, no polling — your contract reacts to markets on its own.
 
-**Pythia Visions** delivers walk-forward validated market intelligence on-chain — pattern type, confidence score, indicator snapshot, and feeds-to-watch for confirmation, all in one event. Backtested across 9 years of history (2017-2026). FREE to subscribe. Live tokens: **BTC** (OVERSOLD_REVERSION 9/10 folds ~100/yr, CAPITULATION_EVENT 4/4 folds ~7/yr) and **ETH** (CAPITULATION_EVENT 5/5 folds ~13/yr).
+**Pythia Visions** delivers walk-forward validated market intelligence on-chain — pattern type, confidence score, indicator snapshot, and feeds-to-watch for confirmation, all in one event. Backtested across 9 years of history. FREE to subscribe. For the current live token + pattern catalog with accuracy stats and fire frequency, call `get_visions_info` from the MCP tools below.
 
 ## Why Pythia?
 
@@ -141,10 +141,10 @@ Calls `get_visions_guide()` — returns a contract that subscribes to VisionFire
 - **Any token, any Chainlink-supported chain** — currently serving BTC, SOL, TAO, RENDER, ONDO, AAVE, UNI, MORPHO, and more, with new tokens added on demand
 - **6 indicator types:** EMA, RSI, Bollinger Bands (upper/lower), VWAP, Volatility, USD Price
 - **4 timeframes:** 5-minute, 1-hour, 1-day, 1-week
-- **4 pricing tiers:** Discovery (0.01 LINK), Analysis (0.02), Speed (0.05), Complete (0.10)
-- **Free trial:** PythiaFaucet contract — no LINK needed, 5 requests/day
+- **4 pricing tiers:** Discovery / Analysis / Speed / Complete — for current LINK fees call `get_pricing`
+- **Free trial:** PythiaFaucet contract — no LINK needed
 - **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
-- **Pythia Visions:** Walk-forward validated market intelligence on-chain — pattern type + confidence + indicator snapshot + feeds-to-watch, delivered via Chainlink. FREE to subscribe. Live: BTC (OVERSOLD_REVERSION, CAPITULATION_EVENT) and ETH (CAPITULATION_EVENT).
+- **Pythia Visions:** Walk-forward validated market intelligence on-chain — pattern type + confidence + indicator snapshot + feeds-to-watch, delivered via Chainlink. FREE to subscribe. For the live list of patterns + tokens, call `get_visions_info`.
 
 ## Integration Examples
 
