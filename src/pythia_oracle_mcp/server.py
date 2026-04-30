@@ -52,85 +52,14 @@ _TIER_RETURNS = {
     "complete": "uint256[] (all indicators)",
 }
 
-# Fallback pricing — used when feed-status.json is unreachable
-_FALLBACK_PRICING = {
-    "discovery": 0.01,
-    "analysis": 0.03,
-    "speed": 0.05,
-    "complete": 0.10,
-}
-
-# Fallback contracts — offline resilience
-_FALLBACK_CONTRACTS = {
-    "polygon_mainnet": {
-        "display_name": "Polygon PoS",
-        "chain_id": 137,
-        "explorer": "https://polygonscan.com",
-        "operator": "0xAA37710aF244514691629Aa15f4A5c271EaE6891",
-        "link_token": "0xb0897686c545045aFc77CF20eC7A532E3120E0F1",
-        "consumers": {
-            "discovery": "0xeC2865d66ae6Af47926B02edd942A756b394F820",
-            "analysis": "0x3b3aC62d73E537E3EF84D97aB5B84B51aF8dB316",
-            "speed": "0xC406e7d9AC385e7AB43cBD56C74ad487f085d47B",
-            "complete": "0x2dEC98fd7173802b351d1E28d0Cd5DdD20C24252",
-        },
-    },
-}
+# No baked-in fallbacks. The MCP server is a thin client over feed-status.json
+# (the canonical source updated every 15 min by the data engine). If the live
+# JSON is unreachable, tools raise a clear error rather than serve stale data.
+# Rationale: Pythia is hot data — token catalogs, Vision patterns, pricing tiers,
+# and contract addresses change. Baked-in defaults rot the moment the package
+# version drifts from production state. Fail-loud beats silent stale.
 
 _CONDITION_NAMES = {0: "ABOVE", 1: "BELOW", 2: "CROSSES_ABOVE", 3: "CROSSES_BELOW"}
-
-# Fallback Visions data — offline resilience (walk-forward validated 2017-2026).
-# Per-token high nibble: BTC=0x1_, ETH=0x2_. Pattern index in low nibble.
-# v2 schema (matches feed-status.json visions.patterns) — see
-# dataengine/scripts/generate_site_data.py _VISIONS_PATTERNS for canonical source.
-_VISIONS_REGISTRY = "0x39407eEc3Ba80746BC6156eD924D16C2689533Ed"
-_VISIONS_PATTERNS = [
-    {
-        "name": "OVERSOLD_REVERSION", "code": "0x10", "token": "BTC", "direction": "BULLISH",
-        "data_span_years": "2017-2026",
-        "accuracy_range_pct": {"min": 58, "max": 66, "point": 62},
-        "fires_per_year_estimate": 100,
-        "fold_validation_ratio": {"passed": 9, "total": 10, "ratio": 0.9},
-        "accuracy": "58-66%", "avg_return": "+0.5% to +2%",
-        "frequency": "~100/yr", "fold_validation": "9/10",
-        "failure_profile": {
-            "total_fires_backtest": 1012, "up_rate_pct": 57.5, "base_up_rate_pct": 52.1,
-            "edge_vs_baseline_pp": 5.4, "median_return_pct": 0.68,
-            "avg_return_when_correct_pct": 3.74, "avg_return_when_wrong_pct": -3.88,
-            "worst_drawdown_pct": -27.14, "best_return_pct": 32.74,
-        },
-    },
-    {
-        "name": "CAPITULATION_EVENT", "code": "0x11", "token": "BTC", "direction": "BULLISH",
-        "data_span_years": "2017-2026",
-        "accuracy_range_pct": {"min": 60, "max": 90, "point": 75},
-        "fires_per_year_estimate": 7,
-        "fold_validation_ratio": {"passed": 4, "total": 4, "ratio": 1.0},
-        "accuracy": "60-90%", "avg_return": "+3% to +8%",
-        "frequency": "~7/yr", "fold_validation": "4/4",
-        "failure_profile": {
-            "total_fires_backtest": 73, "up_rate_pct": 78.1, "base_up_rate_pct": 52.1,
-            "edge_vs_baseline_pp": 26.0, "median_return_pct": 5.16,
-            "avg_return_when_correct_pct": 9.32, "avg_return_when_wrong_pct": -6.17,
-            "worst_drawdown_pct": -21.24, "best_return_pct": 32.74,
-        },
-    },
-    {
-        "name": "CAPITULATION_EVENT", "code": "0x20", "token": "ETH", "direction": "BULLISH",
-        "data_span_years": "2017-2026",
-        "accuracy_range_pct": {"min": 50, "max": 80, "point": 65},
-        "fires_per_year_estimate": 13,
-        "fold_validation_ratio": {"passed": 5, "total": 5, "ratio": 1.0},
-        "accuracy": "50-80%", "avg_return": "+2% to +8%",
-        "frequency": "~13/yr", "fold_validation": "5/5",
-        "failure_profile": {
-            "total_fires_backtest": 126, "up_rate_pct": 75.4, "base_up_rate_pct": 51.3,
-            "edge_vs_baseline_pp": 24.1, "median_return_pct": 3.99,
-            "avg_return_when_correct_pct": 9.11, "avg_return_when_wrong_pct": -7.46,
-            "worst_drawdown_pct": -28.85, "best_return_pct": 38.20,
-        },
-    },
-]
 
 
 def _parse_consumers(raw: dict) -> dict[str, str]:
@@ -143,42 +72,59 @@ def _parse_consumers(raw: dict) -> dict[str, str]:
     return parsed
 
 
-def _get_contracts(data: dict | None = None) -> dict:
-    """Get normalized contracts from feed-status.json, or fallback."""
-    if data and "developer" in data and "contracts" in data["developer"]:
-        result = {}
-        for chain_key, chain_data in data["developer"]["contracts"].items():
-            consumers_raw = chain_data.get("consumers", {})
-            result[chain_key] = {
-                "display_name": chain_data.get("display_name", chain_key),
-                "chain_id": chain_data.get("chain_id"),
-                "explorer": chain_data.get("explorer", ""),
-                "operator": chain_data.get("operator", ""),
-                "link_token": chain_data.get("link_token", ""),
-                "consumers": _parse_consumers(consumers_raw),
-            }
-        if result:
-            return result
-    return _FALLBACK_CONTRACTS.copy()
+def _get_contracts(data: dict) -> dict:
+    """Extract normalized contracts from live feed-status.json data.
+
+    Raises RuntimeError if the data is missing the developer.contracts section
+    (would only happen if generate_site_data.py is broken or schema changed).
+    """
+    contracts = data.get("developer", {}).get("contracts")
+    if not contracts:
+        raise RuntimeError(
+            "feed-status.json is missing developer.contracts. "
+            "This is a structural error in the live data — check the data engine."
+        )
+
+    result = {}
+    for chain_key, chain_data in contracts.items():
+        consumers_raw = chain_data.get("consumers", {})
+        result[chain_key] = {
+            "display_name": chain_data.get("display_name", chain_key),
+            "chain_id": chain_data.get("chain_id"),
+            "explorer": chain_data.get("explorer", ""),
+            "operator": chain_data.get("operator", ""),
+            "link_token": chain_data.get("link_token", ""),
+            "consumers": _parse_consumers(consumers_raw),
+        }
+    return result
 
 
-def _get_mainnet(data: dict | None = None) -> dict:
-    """Get polygon_mainnet contracts entry."""
+def _get_mainnet(data: dict) -> dict:
+    """Get polygon_mainnet contracts entry from live data."""
     contracts = _get_contracts(data)
     return contracts.get("polygon_mainnet", next(iter(contracts.values())))
 
 
-def _get_tier_fees(data: dict | None = None) -> dict[str, float]:
-    """Extract tier fees from feed-status.json data, or return fallback."""
-    if data and "tiers" in data:
-        return {t["id"]: t["fee"] for t in data["tiers"] if "id" in t and "fee" in t}
-    return _FALLBACK_PRICING.copy()
+def _get_tier_fees(data: dict) -> dict[str, float]:
+    """Extract tier fees from live feed-status.json data.
+
+    Raises RuntimeError if tiers section is missing.
+    """
+    tiers = data.get("tiers")
+    if not tiers:
+        raise RuntimeError(
+            "feed-status.json is missing the tiers section. "
+            "This is a structural error in the live data — check the data engine."
+        )
+    return {t["id"]: t["fee"] for t in tiers if "id" in t and "fee" in t}
 
 
-def _get_tier_fee(data: dict | None, tier: str) -> str:
-    """Get fee string like '0.01 LINK' for a tier."""
+def _get_tier_fee(data: dict, tier: str) -> str:
+    """Get fee string like '0.01 LINK' for a tier from live data."""
     fees = _get_tier_fees(data)
-    return f"{fees.get(tier, _FALLBACK_PRICING.get(tier, '?'))} LINK"
+    if tier not in fees:
+        raise RuntimeError(f"Tier '{tier}' not found in live pricing data. Available: {list(fees)}")
+    return f"{fees[tier]} LINK"
 
 # Cache — 60s TTL (JSON updates every 15min, but keep responsive)
 _cache: dict = {}
@@ -186,16 +132,30 @@ CACHE_TTL_SECONDS = 60
 
 
 async def _fetch_data() -> dict:
-    """Fetch feed-status.json with cache."""
+    """Fetch feed-status.json from the live Pythia data engine.
+
+    Cached for CACHE_TTL_SECONDS to keep tool responses fast. Raises RuntimeError
+    with a clear message if the live URL is unreachable — there is no baked-in
+    fallback. AI consumers should retry shortly or check status; serving stale
+    data silently would be worse than a clear failure.
+    """
     now = datetime.now(timezone.utc)
     cached = _cache.get("data")
     if cached and (now - cached["at"]).total_seconds() < CACHE_TTL_SECONDS:
         return cached["data"]
 
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(DATA_URL)
-        resp.raise_for_status()
-        data = resp.json()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(DATA_URL)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as e:
+        raise RuntimeError(
+            f"Pythia data unreachable: GET {DATA_URL} failed with "
+            f"{type(e).__name__}: {e}. "
+            "MCP cannot serve token, pattern, pricing, or contract data without the "
+            "live JSON. Retry shortly, or check https://pythia.c3x-solutions.com/status."
+        ) from e
 
     _cache["data"] = {"data": data, "at": now}
     return data
@@ -907,17 +867,24 @@ async def get_visions_info() -> str:
     Returns the walk-forward validated patterns with accuracy stats, the Vision Registry
     contract address, subscription info (FREE), evaluation frequency, and
     supported tokens. Visions are pattern detections that passed walk-forward
-    validation across 9 years of history (2017-2026). Live tokens:
-      - BTC (v5): OVERSOLD_REVERSION (9/10 folds, ~100/yr) and CAPITULATION_EVENT (4/4 folds, ~7/yr)
-      - ETH (v1): CAPITULATION_EVENT (5/5 folds, ~13/yr)
+    validation across multiple years of history. Live token + pattern set is
+    returned in the response (canonical source: feed-status.json visions section).
     """
     data = await _fetch_data()
-    visions = data.get("visions", {}) if data else {}
+    visions = data.get("visions", {})
 
-    registry = visions.get("registry", _VISIONS_REGISTRY)
-    patterns = visions.get("patterns", _VISIONS_PATTERNS)
-    tokens = visions.get("tokens", ["BTC", "ETH"])
+    registry = visions.get("registry", "")
+    patterns = visions.get("patterns", [])
+    tokens = visions.get("tokens", [])
     stats = visions.get("stats", {})
+
+    if not patterns:
+        return (
+            "Pythia Visions catalog is empty in the live data. "
+            "This may mean Visions are not yet deployed on this environment, "
+            "or feed-status.json is missing the visions.patterns section. "
+            "Check https://pythia.c3x-solutions.com/feed-status.json directly."
+        )
 
     lines = ["Pythia Visions — Walk-Forward Validated Market Intelligence On-Chain\n"]
     lines.append(
@@ -968,8 +935,14 @@ async def get_visions_guide() -> str:
     and full analysis payload. Subscription is FREE (no LINK required).
     """
     data = await _fetch_data()
-    visions = data.get("visions", {}) if data else {}
-    registry = visions.get("registry", _VISIONS_REGISTRY)
+    visions = data.get("visions", {})
+    registry = visions.get("registry", "")
+    if not registry:
+        raise RuntimeError(
+            "Pythia Visions registry address is missing from live data. "
+            "Visions may not be deployed on this environment yet. "
+            "Check https://pythia.c3x-solutions.com/feed-status.json visions.registry."
+        )
     mainnet = _get_mainnet(data)
     link_token = mainnet["link_token"]
 
@@ -1041,11 +1014,9 @@ Steps:
 4. Decode the payload bytes to get the full analysis JSON
 
 Pattern Types (walk-forward validated):
-  BTC (v5) — 0x1_ range:
-    0x10 = OVERSOLD_REVERSION  (~100/yr, 9/10 folds, accuracy range 58-66%)
-    0x11 = CAPITULATION_EVENT  (~7/yr, 4/4 folds, accuracy range 60-90%)
-  ETH (v1) — 0x2_ range:
-    0x20 = CAPITULATION_EVENT  (~13/yr, 5/5 folds, accuracy range 50-80%)
+  Per-token high nibble: BTC=0x1_, ETH=0x2_, next token=0x3_, etc.
+  Live pattern catalog (codes, accuracy ranges, fold validation, fires/yr,
+  failure profile) — call get_visions_info() for the current set.
 
 Payload JSON includes: indicators (RSI, EMA, Bollinger, VWAP, ATR),
 pattern details, confidence score, analysis narrative,
@@ -1068,7 +1039,7 @@ async def get_vision_history(token: str = "BTC") -> str:
                Currently live: BTC, ETH.
     """
     data = await _fetch_data()
-    visions = data.get("visions", {}) if data else {}
+    visions = data.get("visions", {})
 
     if not visions:
         return ("Pythia Visions data not available yet. "
@@ -1076,7 +1047,7 @@ async def get_vision_history(token: str = "BTC") -> str:
 
     recent = visions.get("recent", [])
     stats = visions.get("stats", {})
-    registry = visions.get("registry", _VISIONS_REGISTRY)
+    registry = visions.get("registry", "")
     token_upper = token.upper()
 
     # Filter by token
@@ -1151,9 +1122,9 @@ async def get_vision_payload(vision_id: int) -> str:
         (last 20 fires per token), returns a helpful pointer to history.
     """
     data = await _fetch_data()
-    visions = data.get("visions", {}) if data else {}
+    visions = data.get("visions", {})
     recent = visions.get("recent", [])
-    patterns = visions.get("patterns", _VISIONS_PATTERNS)
+    patterns = visions.get("patterns", [])
 
     found = next((v for v in recent if v.get("id") == vision_id), None)
     if not found:

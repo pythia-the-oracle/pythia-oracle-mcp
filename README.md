@@ -146,6 +146,12 @@ Calls `get_visions_guide()` — returns a contract that subscribes to VisionFire
 - **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
 - **Pythia Visions:** Walk-forward validated market intelligence on-chain — pattern type + confidence + indicator snapshot + feeds-to-watch, delivered via Chainlink. FREE to subscribe. For the live list of patterns + tokens, call `get_visions_info`.
 
+## Data Freshness
+
+This MCP server is a thin client over `https://pythia.c3x-solutions.com/feed-status.json`, the live status feed updated every 15 minutes by the data engine. New tokens, new patterns, contract addresses, and pricing changes appear in MCP tools within seconds of the next data-engine cycle — no package update required.
+
+If the live feed is unreachable, MCP tools raise a clear error rather than serve stale baked-in data. Retry shortly or check status. (As of v0.9.0, fail-loud — earlier versions had baked-in fallbacks that drifted from production state and have been removed.)
+
 ## Integration Examples
 
 See [pythia-oracle-examples](https://github.com/pythia-the-oracle/pythia-oracle-examples) for Solidity contracts with Hardhat setup — ready to deploy on any Chainlink-supported network.
