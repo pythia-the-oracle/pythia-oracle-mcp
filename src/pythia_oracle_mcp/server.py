@@ -105,6 +105,24 @@ def _get_mainnet(data: dict) -> dict:
     return contracts.get("polygon_mainnet", next(iter(contracts.values())))
 
 
+def _vision_registries(data: dict) -> list[dict]:
+    """Return visions.registries[] (multi-chain), falling back to the legacy singular shape."""
+    visions = data.get("visions", {}) if data else {}
+    regs = visions.get("registries", [])
+    if regs:
+        return regs
+    legacy = visions.get("registry", "")
+    return [{"chain": "mainnet", "address": legacy}] if legacy else []
+
+
+def _chain_display_names(data: dict) -> dict[str, str]:
+    """Map registry chain key ('mainnet', 'arbitrum', ...) to display name."""
+    return {
+        chain_key.removeprefix("polygon_"): c.get("display_name", chain_key)
+        for chain_key, c in _get_contracts(data).items()
+    }
+
+
 def _get_tier_fees(data: dict) -> dict[str, float]:
     """Extract tier fees from live feed-status.json data.
 
@@ -693,20 +711,36 @@ async def get_events_guide() -> str:
     """
     data = await _fetch_data()
     events = data.get("events", {}) if data else {}
-    mainnet = _get_mainnet(data)
-    link_token = mainnet["link_token"]
 
+    chain_meta = {
+        chain_key.removeprefix("polygon_"): {
+            "display_name": c.get("display_name", chain_key),
+            "link_token": c.get("link_token", ""),
+        }
+        for chain_key, c in _get_contracts(data).items()
+    }
     registries = events.get("registries", [])
-    mainnet_reg = next((r for r in registries if r["chain"] == "mainnet"), None)
-    amoy_reg = next((r for r in registries if r["chain"] == "amoy"), None)
-    mainnet_addr = mainnet_reg["address"] if mainnet_reg else "CHECK_WEBSITE"
-    amoy_addr = amoy_reg["address"] if amoy_reg else "CHECK_WEBSITE"
+    name_width = max(
+        (len(chain_meta.get(r["chain"], {}).get("display_name", r["chain"])) for r in registries),
+        default=0,
+    )
+    header_lines = ["Event Registry — deploy on whichever chain you integrate with:"]
+    for r in registries:
+        name = chain_meta.get(r["chain"], {}).get("display_name", r["chain"])
+        header_lines.append(f"  {name:<{name_width}}  {r['address']}")
+    header_block = "\n".join(header_lines)
+
+    deploy_lines = ["Deployment addresses (LINK token + registry per chain):"]
+    for r in registries:
+        meta = chain_meta.get(r["chain"], {})
+        name = meta.get("display_name", r["chain"])
+        link = meta.get("link_token") or "CHECK_WEBSITE"
+        deploy_lines.append(f"  {name:<{name_width}}  _link={link}  _registry={r['address']}")
+    deploy_block = "\n".join(deploy_lines)
 
     return f"""Pythia Events Integration — On-Chain Indicator Alerts
 
-Registry (Mainnet): {mainnet_addr}
-Registry (Amoy):    {amoy_addr}
-LINK Token:         {link_token}
+{header_block}
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -783,9 +817,7 @@ Conditions: 0=ABOVE, 1=BELOW (active). 2=CROSSES_ABOVE, 3=CROSSES_BELOW (future)
 Threshold: 8 decimal places. RSI 30 = 3000000000, RSI 70 = 7000000000.
 Refund: unused whole days returned in LINK on fire or cancel.
 
-Deployment addresses:
-  Mainnet: _link={link_token}, _registry={mainnet_addr}
-  Amoy:    _link=0x0Fd9e8d3aF1aaee056EB9e802c3A762a667b1904, _registry={amoy_addr}"""
+{deploy_block}"""
 
 
 @mcp.tool()
@@ -873,7 +905,7 @@ async def get_visions_info() -> str:
     data = await _fetch_data()
     visions = data.get("visions", {})
 
-    registry = visions.get("registry", "")
+    registries = _vision_registries(data)
     patterns = visions.get("patterns", [])
     tokens = visions.get("tokens", [])
     stats = visions.get("stats", {})
@@ -909,8 +941,12 @@ async def get_visions_info() -> str:
     lines.append("  3. React — read the payload on-chain, auto-subscribe to confirmation Events, trigger your strategy")
     lines.append("")
 
-    lines.append(f"Vision Registry: {registry}")
-    lines.append(f"Chain: Polygon PoS (mainnet)")
+    display_for = _chain_display_names(data)
+    lines.append("Vision Registry (deployed on every chain — subscription is FREE everywhere):")
+    name_width = max((len(display_for.get(r["chain"], r["chain"])) for r in registries), default=0)
+    for r in registries:
+        name = display_for.get(r["chain"], r["chain"])
+        lines.append(f"  {name:<{name_width}}  {r['address']}")
     lines.append(f"Subscription fee: FREE")
     lines.append(f"Tokens: {', '.join(tokens)}")
     lines.append(f"Signal frequency: ~107 Visions/year for BTC (100 OVERSOLD + 7 CAPITULATION), ~13/year for ETH")
@@ -935,21 +971,34 @@ async def get_visions_guide() -> str:
     and full analysis payload. Subscription is FREE (no LINK required).
     """
     data = await _fetch_data()
-    visions = data.get("visions", {})
-    registry = visions.get("registry", "")
-    if not registry:
+    registries = _vision_registries(data)
+    if not registries:
         raise RuntimeError(
-            "Pythia Visions registry address is missing from live data. "
+            "Pythia Visions registries missing from live data. "
             "Visions may not be deployed on this environment yet. "
-            "Check https://pythia.c3x-solutions.com/feed-status.json visions.registry."
+            "Check https://pythia.c3x-solutions.com/feed-status.json visions.registries."
         )
-    mainnet = _get_mainnet(data)
-    link_token = mainnet["link_token"]
+
+    display_for = _chain_display_names(data)
+    name_width = max(
+        (len(display_for.get(r["chain"], r["chain"])) for r in registries),
+        default=0,
+    )
+    header_lines = ["Vision Registry — subscription is FREE on every chain (no LINK required):"]
+    for r in registries:
+        name = display_for.get(r["chain"], r["chain"])
+        header_lines.append(f"  {name:<{name_width}}  {r['address']}")
+    header_block = "\n".join(header_lines)
+
+    deploy_lines = ["Deployment (deploy one subscriber per chain you want to listen on):"]
+    for r in registries:
+        name = display_for.get(r["chain"], r["chain"])
+        deploy_lines.append(f"  {name:<{name_width}}  _registry={r['address']}")
+    deploy_block = "\n".join(deploy_lines)
 
     return f"""Pythia Visions Integration — Walk-Forward Validated Market Intelligence On-Chain
 
-Vision Registry (Mainnet): {registry}
-LINK Token: {link_token}
+{header_block}
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -1008,7 +1057,7 @@ contract MyVisionSubscriber {{
 ```
 
 Steps:
-1. Deploy with (_registry) = {registry}
+1. Deploy with (_registry) for the chain you want to subscribe on (addresses below)
 2. Call subscribeBTC() / subscribeETH() — no LINK needed, subscription is FREE
 3. Listen for VisionFired events on the registry contract via RPC/WebSocket
 4. Decode the payload bytes to get the full analysis JSON
@@ -1026,8 +1075,7 @@ Token IDs: keccak256 of the token name.
   BTC = keccak256("BTC") = 0xe98e2830be1a7e4156d656a7505e65d08c67660dc618072422e9c78053c261e9
   ETH = keccak256("ETH") = 0xaaaebeba3810b1e6b70781f14b2d72c1cb89c0b2b320c43bb67ff79f562f5ff4
 
-Deployment:
-  Mainnet: _registry={registry}"""
+{deploy_block}"""
 
 
 @mcp.tool()
@@ -1047,14 +1095,19 @@ async def get_vision_history(token: str = "BTC") -> str:
 
     recent = visions.get("recent", [])
     stats = visions.get("stats", {})
-    registry = visions.get("registry", "")
+    registries = _vision_registries(data)
     token_upper = token.upper()
 
     # Filter by token
     filtered = [v for v in recent if v.get("token", "").upper() == token_upper]
 
     lines = [f"Pythia Visions — {token_upper} History\n"]
-    lines.append(f"Registry: {registry}")
+    if registries:
+        display_for = _chain_display_names(data)
+        chain_list = ", ".join(
+            f"{display_for.get(r['chain'], r['chain'])} ({r['address']})" for r in registries
+        )
+        lines.append(f"Registry deployed on: {chain_list}")
     lines.append(f"Subscription: FREE\n")
 
     if not filtered:
