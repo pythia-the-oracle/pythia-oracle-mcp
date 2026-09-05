@@ -1,3 +1,3 @@
 """Pythia Oracle MCP Server — on-chain calculated indicators for AI agents."""
 
-__version__ = "0.10.0"
+__version__ = "0.12.0"

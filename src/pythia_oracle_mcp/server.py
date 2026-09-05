@@ -9,7 +9,7 @@ Data source: Pythia's public feed-status.json, updated every 15 minutes.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -23,7 +23,8 @@ mcp = FastMCP(
         "Chainlink across supported networks. Use these tools to explore available data, check "
         "oracle reliability, get integration code, learn about Pythia Events "
         "(on-chain indicator alert subscriptions), and Pythia Visions "
-        "(walk-forward validated market intelligence on-chain — pattern type, confidence, indicator snapshot, and feeds-to-watch for confirmation)."
+        "(walk-forward validated market intelligence on-chain — pattern type, confidence, indicator snapshot, and feeds-to-watch for confirmation), "
+        "and read the free, immutable public indicator history (get_indicator_history — audit or settle any indicator condition over past dates from files anyone can re-fetch)."
     ),
 )
 
@@ -35,7 +36,7 @@ DATA_URL = "https://pythia.c3x-solutions.com/feed-status.json"
 PRICING_URL = "https://pythia.c3x-solutions.com/feed-status.json"
 WEBSITE_URL = "https://pythia.c3x-solutions.com"
 
-FAUCET_ADDRESS = "0x640fC3B9B607E324D7A3d89Fcb62C77Cc0Bd420A"
+FAUCET_ADDRESS = "0x640fC3B9B607E324D7A3d89Fcb62C77Cc0Bd420A"  # multi-x-ok: PythiaFaucet is Polygon-Amoy-testnet-only by design (Item 7 trigger when faucet expands)
 
 # Job IDs live in Chainlink node job specs, not in feed-status.json
 _JOB_IDS = {
@@ -496,30 +497,96 @@ async def get_pricing() -> str:
     No LINK needed. 5 requests/day/address. Real data."""
 
 
+def _chains_with_tier(data: dict, tier: str) -> list[dict]:
+    """Per-chain rows that have a consumer contract for the requested tier.
+
+    Returns [{chain, display_name, consumer, operator, link_token, fee}, ...]
+    sorted by chain_key (mainnet first, then alphabetical). The consumer
+    addr is looked up by tier prefix because the consumers dict is keyed by
+    display label like "Discovery (0.01 LINK)" — the leading word is the
+    tier name, case-insensitive.
+    """
+    contracts = _get_contracts(data)
+    rows = []
+    for chain_key, c in contracts.items():
+        chain_name = chain_key.removeprefix("polygon_")
+        consumers = c.get("consumers") or {}
+        consumer_addr = ""
+        for display, addr in consumers.items():
+            if display.lower().startswith(tier.lower()):
+                consumer_addr = addr
+                break
+        if not consumer_addr:
+            continue
+        rows.append({
+            "chain": chain_name,
+            "display_name": c.get("display_name", chain_name),
+            "consumer": consumer_addr,
+            "operator": c.get("operator", ""),
+            "link_token": c.get("link_token", ""),
+            "fee": c.get("fee", ""),
+        })
+    rows.sort(key=lambda r: (0 if r["chain"] == "mainnet" else 1, r["chain"]))
+    return rows
+
+
 @mcp.tool()
-async def get_integration_guide(tier: str = "discovery") -> str:
+async def get_integration_guide(tier: str = "discovery", chain: str = "") -> str:
     """Get Solidity code to integrate Pythia into a smart contract.
 
     Args:
         tier: 'discovery' (single value), 'analysis', 'speed', or 'complete'.
+        chain: Optional chain key (e.g. 'mainnet', 'amoy', 'arbitrum'). When
+            unset, the embedded Solidity uses the first available chain's
+            addresses (Polygon mainnet by convention) and the prose lists
+            every chain where this tier's consumer is deployed.
     """
     tier = tier.lower()
     if tier not in _JOB_IDS:
         return f"Unknown tier '{tier}'. Choose: discovery, analysis, speed, complete"
 
     data = await _fetch_data()
-    mainnet = _get_mainnet(data)
-    consumer_addr = mainnet["consumers"].get(tier, "CHECK_WEBSITE")
+    rows = _chains_with_tier(data, tier)
+    if not rows:
+        return (f"No consumer contracts available for tier '{tier}'. "
+                f"Visit {WEBSITE_URL} for current chain coverage.")
+
+    if chain:
+        chain_lower = chain.lower()
+        selected = next((r for r in rows if r["chain"] == chain_lower), None)
+        if not selected:
+            available = ", ".join(r["chain"] for r in rows)
+            return f"Chain '{chain}' has no '{tier}' consumer. Available: {available}"
+    else:
+        selected = rows[0]
+
+    consumer_addr = selected["consumer"]
+    operator = selected["operator"]
+    link_token = selected["link_token"]
+    selected_chain = selected["display_name"]
     job_id = _JOB_IDS[tier]
-    operator = mainnet["operator"]
-    link_token = mainnet["link_token"]
     fee_str = _get_tier_fee(data, tier)
+
+    # Per-chain header table — same pattern as get_events_guide.
+    name_width = max(len(r["display_name"]) for r in rows)
+    header_lines = ["Pythia Consumer Contracts — deploy on whichever chain you integrate with:"]
+    for r in rows:
+        header_lines.append(
+            f"  {r['display_name']:<{name_width}}  consumer={r['consumer']}  "
+            f"operator={r['operator']}  LINK={r['link_token']}"
+        )
+    header_block = "\n".join(header_lines)
 
     if tier == "discovery":
         fee_num = _get_tier_fees(data).get("discovery", 0.01)
         return f"""Pythia Integration — Discovery Tier (Single Indicator)
 
-Consumer: {consumer_addr}
+{header_block}
+
+Solidity below targets {selected_chain}. Swap `oracle` + `_setChainlinkToken(...)`
+addresses if deploying elsewhere; the contract logic is identical per chain.
+
+Consumer ({selected_chain}): {consumer_addr}
 Fee: {fee_str}
 Job ID: {job_id}
 
@@ -565,7 +632,7 @@ contract MyPythiaConsumer is ChainlinkClient, ConfirmedOwner {{
 ```
 
 Steps:
-1. Deploy this contract on Polygon mainnet
+1. Deploy this contract on {selected_chain} (or any chain in the table above)
 2. Fund it with ERC-677 LINK (use PegSwap if you have bridged LINK)
 3. Call requestIndicator("bitcoin_RSI_1H_14") — result arrives in fulfill()
 4. Read lastValue — it's the indicator x 1e18
@@ -576,7 +643,12 @@ Free trial: Use PythiaFaucet ({FAUCET_ADDRESS}) instead — no LINK needed."""
         fee_num = _get_tier_fees(data).get(tier, 0.10)
         return f"""Pythia Integration — {tier.upper()} Tier (Bundle)
 
-Consumer: {consumer_addr}
+{header_block}
+
+Solidity below targets {selected_chain}. Swap `oracle` + `_setChainlinkToken(...)`
+addresses if deploying elsewhere; the contract logic is identical per chain.
+
+Consumer ({selected_chain}): {consumer_addr}
 Fee: {fee_str}
 Job ID: {job_id}
 
@@ -630,7 +702,7 @@ contract MyPythiaBundleConsumer is ChainlinkClient, ConfirmedOwner {{
 ```
 
 Steps:
-1. Deploy on Polygon mainnet (gasLimit: 1,000,000 — bundles need more gas)
+1. Deploy on {selected_chain} (gasLimit: 1,000,000 — bundles need more gas)
 2. Fund with ERC-677 LINK
 3. Call requestBundle("bitcoin") — bundle arrives in fulfillBundle()
 4. Read lastBundle[i] — each slot is an indicator x 1e18
@@ -1430,6 +1502,230 @@ async def get_feed_value(feed_name: str) -> str:
         "Cached value updated by the indicator pipeline. For a Chainlink-"
         "attested on-chain value, use oracle.request() — see "
         "get_integration_guide()."
+    )
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# Tools — Public Indicator History (immutable day-files)
+# ---------------------------------------------------------------------------
+
+HISTORY_BASE_URL = "https://pythia.c3x-solutions.com/history"
+HISTORY_MANIFEST_URL = f"{HISTORY_BASE_URL}/manifest.json"
+HISTORY_MANIFEST_TTL_SECONDS = 900  # manifest changes once a day; day-files never
+HISTORY_MAX_DAYS_PER_CALL = 31
+_history_day_cache: dict = {}  # (chain, feed, day) -> payload; immutable, safe to keep
+
+
+async def _fetch_history_manifest() -> dict:
+    now = datetime.now(timezone.utc)
+    cached = _cache.get("history_manifest")
+    if cached and (now - cached["at"]).total_seconds() < HISTORY_MANIFEST_TTL_SECONDS:
+        return cached["data"]
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(HISTORY_MANIFEST_URL)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as e:
+        raise RuntimeError(
+            f"Pythia history unreachable: GET {HISTORY_MANIFEST_URL} failed with "
+            f"{type(e).__name__}: {e}. Retry shortly, or check "
+            f"https://pythia.c3x-solutions.com/status."
+        ) from e
+    _cache["history_manifest"] = {"data": data, "at": now}
+    return data
+
+
+async def _fetch_history_day(client: httpx.AsyncClient, chain: str, feed_name: str, day: str):
+    """One immutable day-file, or None when the host has no file for that day
+    (a gap the caller must report — never silently interpolated)."""
+    key = (chain, feed_name, day)
+    if key in _history_day_cache:
+        return _history_day_cache[key]
+    url = f"{HISTORY_BASE_URL}/{chain}/{feed_name}/{day}.json"
+    try:
+        resp = await client.get(url)
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"GET {url} failed with {type(e).__name__}: {e}") from e
+    if resp.status_code == 404:
+        return None
+    resp.raise_for_status()
+    payload = resp.json()
+    _history_day_cache[key] = payload
+    return payload
+
+
+def _iter_days(start: str, end: str):
+    d0 = datetime.strptime(start, "%Y-%m-%d").date()
+    d1 = datetime.strptime(end, "%Y-%m-%d").date()
+    step = timedelta(days=1)
+    while d0 <= d1:
+        yield d0.isoformat()
+        d0 += step
+
+
+@mcp.tool()
+async def get_indicator_history(
+    feed_name: str,
+    start_date: str,
+    end_date: str = "",
+    chain: str = "",
+    condition: str = "",
+    threshold: float | None = None,
+) -> str:
+    """Read Pythia's public, immutable indicator history for a feed over a date
+    range — and optionally settle a condition against it.
+
+    Backed by the free day-file archive at
+    https://pythia.c3x-solutions.com/history/{chain}/{feed_name}/{YYYY-MM-DD}.json
+    (one file per feed per closed UTC day, 5-minute points, never rewritten once
+    published). Use it to audit or re-derive "was RSI below 30 at any point
+    last week?", to reconstruct what a Vision or Event saw, to backtest a
+    threshold before subscribing to an Event, or to settle a prediction-market
+    style question from public inputs anyone can re-fetch and verify.
+
+    Args:
+        feed_name: full feed name, same key as Feeds/Events (e.g. 'bitcoin_RSI_1D_14').
+        start_date: first UTC day, YYYY-MM-DD (inclusive).
+        end_date: last UTC day, YYYY-MM-DD (inclusive). Defaults to start_date.
+            At most 31 days per call — split longer ranges.
+        chain: delivery chain the feed is archived for (e.g. 'polygon'). Only
+            needed when the manifest lists the feed on more than one chain.
+        condition: optional 'ABOVE' or 'BELOW' — with threshold, evaluates
+            whether ANY point in the range satisfies it.
+        threshold: numeric threshold for condition, in the feed's own units.
+
+    Returns:
+        Per-day coverage (points, min, max, first, last), the range summary,
+        the day-file URLs used (so a verifier can re-fetch the exact inputs),
+        and — when condition+threshold are given — a verdict:
+        TRUE (first matching timestamp + value), FALSE (full coverage, no
+        match), or INSUFFICIENT_DATA (missing day-files or gaps large enough
+        that FALSE cannot be asserted). Never interpolates across gaps.
+    """
+    if not end_date:
+        end_date = start_date
+    try:
+        days = list(_iter_days(start_date, end_date))
+    except ValueError:
+        return "Dates must be YYYY-MM-DD (UTC). Example: start_date='2026-08-01', end_date='2026-08-07'."
+    if not days:
+        return f"end_date {end_date} is before start_date {start_date}."
+    if len(days) > HISTORY_MAX_DAYS_PER_CALL:
+        return (
+            f"Range is {len(days)} days; this tool reads at most "
+            f"{HISTORY_MAX_DAYS_PER_CALL} per call. Split the range and combine "
+            f"the results (day-files are immutable, so partial reads compose safely)."
+        )
+    cond = condition.strip().upper()
+    if cond and cond not in ("ABOVE", "BELOW"):
+        return "condition must be 'ABOVE' or 'BELOW' (or empty for a plain read)."
+    if cond and threshold is None:
+        return "condition needs a numeric threshold."
+
+    manifest = await _fetch_history_manifest()
+    entries = [f for f in manifest.get("feeds", []) if f.get("feed_name") == feed_name]
+    if chain:
+        entries = [f for f in entries if f.get("chain") == chain]
+    if not entries:
+        return (
+            f"'{feed_name}'{' on ' + chain if chain else ''} is not in the public "
+            f"history manifest ({HISTORY_MANIFEST_URL}). Coverage grows over time — "
+            f"check the feed name with get_token_feeds(engine_id), or read the "
+            f"manifest for the live list of archived feeds and their first/last day."
+        )
+    if len(entries) > 1:
+        chains = ", ".join(sorted(e["chain"] for e in entries))
+        return f"'{feed_name}' is archived on several chains ({chains}) — pass chain=..."
+    entry = entries[0]
+    chain = entry["chain"]
+    first_day, last_day = entry.get("first_day"), entry.get("last_day")
+    if days[-1] < first_day or days[0] > last_day:
+        return (
+            f"'{feed_name}' ({chain}) is archived for {first_day} → {last_day}; "
+            f"{start_date} → {end_date} lies outside that window. The current UTC "
+            f"day is never present — it is published after 00:00 UTC the next day."
+        )
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        import asyncio
+        payloads = await asyncio.gather(
+            *(_fetch_history_day(client, chain, feed_name, d) for d in days))
+
+    out = [
+        f"Feed: {feed_name}  Chain: {chain}  Range: {start_date} → {end_date} (UTC)",
+        f"Archived window for this feed: {first_day} → {last_day}",
+        "",
+        "Day         Points  Min           Max           First         Last",
+    ]
+    all_points: list = []
+    missing_days: list[str] = []
+    short_days: list[str] = []
+    urls: list[str] = []
+    for d, p in zip(days, payloads):
+        if p is None:
+            missing_days.append(d)
+            out.append(f"{d}  —       (no day-file)")
+            continue
+        pts = p.get("points") or []
+        urls.append(f"{HISTORY_BASE_URL}/{chain}/{feed_name}/{d}.json")
+        if not pts:
+            missing_days.append(d)
+            out.append(f"{d}  0       (empty)")
+            continue
+        vals = [v for _, v in pts]
+        nominal = p.get("nominal_interval_seconds", 300)
+        expected = 86400 // nominal if nominal else 288
+        if len(pts) < 0.9 * expected:
+            short_days.append(f"{d} ({len(pts)}/{expected})")
+        all_points.extend(pts)
+        out.append(
+            f"{d}  {len(pts):<7} {min(vals):<13.6g} {max(vals):<13.6g} "
+            f"{vals[0]:<13.6g} {vals[-1]:<13.6g}"
+        )
+
+    out.append("")
+    if all_points:
+        vals = [v for _, v in all_points]
+        out.append(
+            f"Range summary: {len(all_points)} points, min {min(vals):.6g}, "
+            f"max {max(vals):.6g}, first {vals[0]:.6g}, last {vals[-1]:.6g}"
+        )
+    if missing_days:
+        out.append(f"Missing day-files: {', '.join(missing_days)}")
+    if short_days:
+        out.append(f"Days with gaps (<90% of expected points): {', '.join(short_days)}")
+
+    if cond:
+        thr = float(threshold)
+        hit = next(
+            ((ts, v) for ts, v in all_points
+             if (v > thr if cond == "ABOVE" else v < thr)),
+            None,
+        )
+        out.append("")
+        out.append(f"Condition: {feed_name} {cond} {thr:g} at ANY point in range")
+        if hit is not None:
+            ts_iso = datetime.fromtimestamp(hit[0], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            out.append(f"Verdict: TRUE — first match {ts_iso} value {hit[1]:.6g}")
+        elif missing_days or short_days:
+            out.append(
+                "Verdict: INSUFFICIENT_DATA — no match in the points available, but "
+                "coverage has gaps, so FALSE cannot be asserted."
+            )
+        else:
+            out.append(
+                "Verdict: FALSE — every day-file present with no material gaps "
+                "(≥90% of expected points), no point satisfies the condition"
+            )
+
+    out.append("")
+    out.append("Inputs (immutable; anyone can re-fetch and verify):")
+    out.extend(f"  {u}" for u in urls)
+    out.append(
+        "Each point is [unix_seconds, value] from the live 5-minute polled series; "
+        "backfilled rows are excluded. Values use the live feed's units."
     )
     return "\n".join(out)
 

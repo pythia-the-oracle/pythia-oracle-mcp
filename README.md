@@ -95,6 +95,7 @@ python -m pythia_oracle_mcp
 | `lookup_event_feed` | Reverse-lookup an Event feedId (bytes32) to its human-readable feed name |
 | `list_subscriptions` | Enumerate active Pythia Event subscriptions for an owner address |
 | `get_feed_value` | Latest computed value for any Pythia indicator feed (off-chain cache) |
+| `get_indicator_history` | Read the free, immutable public history for a feed over a date range (≤31 days/call) — per-day coverage + optional ABOVE/BELOW verdict (TRUE / FALSE / INSUFFICIENT_DATA) with the exact day-file URLs so anyone can re-verify |
 
 ## Example Prompts
 
