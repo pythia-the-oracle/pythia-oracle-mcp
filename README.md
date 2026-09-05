@@ -145,6 +145,7 @@ Calls `get_visions_guide()` — returns a contract that subscribes to VisionFire
 - **Free trial:** PythiaFaucet contract — no LINK needed
 - **Pythia Events:** Subscribe to indicator conditions (ABOVE/BELOW thresholds) — your contract gets called when they trigger. Prepaid in LINK, unused time refunded on cancel or fire. No keeper infrastructure needed.
 - **Pythia Visions:** Walk-forward validated market intelligence on-chain — pattern type + confidence + indicator snapshot + feeds-to-watch, delivered via Chainlink. FREE to subscribe. For the live list of patterns + tokens, call `get_visions_info`.
+- **Public indicator history:** free, immutable JSON archive of every published indicator value — one file per feed per closed UTC day at `https://pythia.c3x-solutions.com/history/{chain}/{feed_name}/{YYYY-MM-DD}.json` (start from `history/manifest.json`). Re-derive or audit any indicator condition over a date range without an oracle call; files never change once published.
 
 ## Data Freshness
 
