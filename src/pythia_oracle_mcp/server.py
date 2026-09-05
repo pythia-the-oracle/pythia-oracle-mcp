@@ -12,7 +12,10 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+try:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP
+except ModuleNotFoundError:  # mcp 2.x renamed FastMCP -> MCPServer (same decorators / run())
+    from mcp.server.mcpserver import MCPServer as FastMCP
 
 mcp = FastMCP(
     "Pythia Oracle",
