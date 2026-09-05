@@ -14,11 +14,17 @@ from datetime import datetime, timedelta, timezone
 import httpx
 try:  # mcp 1.x
     from mcp.server.fastmcp import FastMCP
+    _MCP_V2 = False
 except ModuleNotFoundError:  # mcp 2.x renamed FastMCP -> MCPServer (same decorators / run())
     from mcp.server.mcpserver import MCPServer as FastMCP
+    _MCP_V2 = True
+
+from . import __version__
 
 mcp = FastMCP(
     "Pythia Oracle",
+    # serverInfo.version: 2.x takes it here; 1.x is patched onto the low-level server below.
+    **({"version": __version__} if _MCP_V2 else {}),
     instructions=(
         "Pythia Oracle — the first oracle delivering calculated technical indicators "
         "on-chain. EMA, RSI, Bollinger Bands, Volatility for 22+ tokens across "
@@ -30,6 +36,10 @@ mcp = FastMCP(
         "and read the free, immutable public indicator history (get_indicator_history — audit or settle any indicator condition over past dates from files anyone can re-fetch)."
     ),
 )
+if not _MCP_V2:
+    _low = getattr(mcp, "_mcp_server", None)
+    if _low is not None and hasattr(_low, "version"):
+        _low.version = __version__
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -1159,7 +1169,7 @@ async def get_vision_history(token: str = "BTC") -> str:
 
     Args:
         token: Token symbol to check (default: BTC). Case-insensitive.
-               Currently live: BTC, ETH.
+               For the live list of Vision tokens call get_visions_info().
     """
     data = await _fetch_data()
     visions = data.get("visions", {})
